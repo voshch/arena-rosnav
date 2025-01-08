@@ -7,7 +7,7 @@ repositories:
   arena/simulation-setup:
     type: git
     url: https://github.com/voshch/arena-simulation-setup.git
-    version: ros2@83f0b0f
+    version: ros2@9ac23c4
 
   deps/xacro:
     type: git
@@ -56,6 +56,11 @@ repositories:
     type: git
     url: https://github.com/jackal/jackal.git
     version: foxy-devel
+
+  deps/robots/husky:
+    type: git
+    url: https://github.com/husky/husky.git
+    version: humble-devel
 
   deps/hunav/hunav_sim:
     type: git

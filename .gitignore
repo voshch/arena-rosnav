@@ -63,4 +63,8 @@ __pycache__/
 
 # arena specific
 .installed
+<<<<<<< Updated upstream
 isaac_setup.bash
+=======
+_debug*.png
+>>>>>>> Stashed changes

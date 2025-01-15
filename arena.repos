@@ -7,7 +7,7 @@ repositories:
   arena/simulation-setup:
     type: git
     url: https://github.com/voshch/arena-simulation-setup.git
-    version: ros2@9ac23c4
+    version: ros2@ecf0bae
 
   deps/xacro:
     type: git
@@ -52,15 +52,25 @@ repositories:
     url: https://github.com/SteveMacenski/slam_toolbox.git
     version: jazzy
 
+  deps/irobot_create_msgs:
+    type: git
+    url: https://github.com/iRobotEducation/irobot_create_msgs.git
+    version: jazzy  
+
   deps/robots/jackal:
     type: git
     url: https://github.com/jackal/jackal.git
     version: foxy-devel
 
-  deps/robots/husky:
+  deps/robots/turtlebot4:
     type: git
-    url: https://github.com/husky/husky.git
-    version: humble-devel
+    url: https://github.com/turtlebot/turtlebot4.git
+    version: jazzy
+
+  deps/ros2_control:
+    type: git
+    url: https://github.com/ros-controls/ros2_control.git
+    version: master
 
   deps/hunav/hunav_sim:
     type: git

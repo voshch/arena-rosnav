@@ -194,6 +194,10 @@ if [ ! -f "$INSTALLED" ] ; then
   . poetry_install
 fi
 
+# robot dependencies
+sudo apt install -y ros-${ROS_DISTRO}-irobot-create-description
+
+
 vcs import src < src/arena/arena-rosnav/arena.repos
 rosdep install -y \
   --from-paths src \

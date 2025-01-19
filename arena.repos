@@ -44,6 +44,16 @@ repositories:
     url: https://github.com/jackal/jackal.git
     version: foxy-devel
 
+  deps/robots/champ:
+    type: git
+    url: https://github.com/chvmp/champ.git
+    version: ros2
+
+  deps/robots/mini_pupper:
+    type: git
+    url: https://github.com/mangdangroboticsclub/mini_pupper_ros.git
+    version: ros2-dev
+
 #  arena/utils/3rd-party-robot-packages:
 #    type: git
 #    url: https://github.com/Arena-Rosnav/3rd-party-robot-packages

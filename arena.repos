@@ -46,13 +46,8 @@ repositories:
 
   deps/robots/champ:
     type: git
-    url: https://github.com/chvmp/champ.git
+    url: https://github.com/phamthaihoangtung/champ.git
     version: ros2
-
-  deps/robots/mini_pupper:
-    type: git
-    url: https://github.com/mangdangroboticsclub/mini_pupper_ros.git
-    version: ros2-dev
 
 #  arena/utils/3rd-party-robot-packages:
 #    type: git

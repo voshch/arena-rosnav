@@ -65,7 +65,7 @@ class ConfigFileGenerator(Node):
             displays.append(Config.PEDSIM_WALLS)
             displays.append(Config.PEDSIM_WAYPOINTS)
 
-        default_file["Visualization Manager"]["Displays"] = displays
+        default_file["Visualization Manager"]["Displays"] += displays
 
         file_path = self._tmp_config_file(default_file)
         self.get_logger().info(f'created config file at {file_path}')
@@ -111,7 +111,7 @@ class ConfigFileGenerator(Node):
 
     @classmethod
     def _tmp_config_file(cls, config_file):
-        f = tempfile.NamedTemporaryFile('w', delete=False)
+        f = tempfile.NamedTemporaryFile('w', delete=False, suffix='.rviz')
         yaml.dump(config_file, f)
         f.close()
         return f.name

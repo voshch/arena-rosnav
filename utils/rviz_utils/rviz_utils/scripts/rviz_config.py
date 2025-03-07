@@ -25,28 +25,16 @@ from std_srvs.srv import Empty
 class ConfigFileGenerator(Node):
     def __init__(self):
         Node.__init__(self, 'create_rviz_config_file')
-
-        TASKGEN_NODE = '/task_generator_node'
-        TASKGEN_PARAM_SRV = os.path.join(TASKGEN_NODE, 'get_parameters')
-        PARAM_INITIALIZED = 'initialized'
-
-        get_parameters_cli = self.create_client(rcl_interfaces.srv.GetParameters, TASKGEN_PARAM_SRV)
-        while not get_parameters_cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info(f'waiting for service {TASKGEN_PARAM_SRV} to become available')
-        self.get_logger().info(f'service {TASKGEN_PARAM_SRV} is available')
-
-        while True:
-            req = rcl_interfaces.srv.GetParameters.Request(names=[PARAM_INITIALIZED])
-            future = get_parameters_cli.call_async(req)
-            rclpy.spin_until_future_complete(self, future)
-            params = future.result()
-            if params.values and params.values[0].bool_value:
-                break
-            self.get_logger().info(f'waiting for {PARAM_INITIALIZED} to be set')
-            time.sleep(1)
-        self.get_logger().info(f'param {PARAM_INITIALIZED} is set')
-
         # self.cli_load = self.create_client('/rviz2/load_config', rcl_interfaces.srv.SetString)
+
+    def wait_taskgen(self):
+        TASKGEN_NODE = '/task_generator_node'
+        TASKGEN_READY_SRV = os.path.join(TASKGEN_NODE, 'ready')
+
+        taskgen_ready_cli = self.create_client(Empty, TASKGEN_READY_SRV)
+        taskgen_ready_cli.wait_for_service()
+        future = taskgen_ready_cli.call_async(Empty.Request())
+        rclpy.spin_until_future_complete(self, future)
 
     def create_config(self) -> str:
         default_file = ConfigFileGenerator._read_default_file()
@@ -134,6 +122,7 @@ def main():
 
     config_file_generator = ConfigFileGenerator()
     try:
+        config_file_generator.wait_taskgen()
         config_file = config_file_generator.create_config()
         launch_service = launch.launch_service.LaunchService()
         launch_service.include_launch_description(
@@ -142,18 +131,17 @@ def main():
                     package="rviz2",
                     executable="rviz2",
                     name="rviz2",
-                    arguments=['-d', config_file, '--ros-args', '--clock'],
+                    arguments=['-d', config_file],
                     parameters=[{"use_sim_time": True}],
                     output="screen",
                 )
             ])
         )
         launch_service.run()
-    except KeyboardInterrupt:
+    except RuntimeError:
         pass
     finally:
         config_file_generator.destroy_node()
-        rclpy.shutdown()
 
     sys.exit(0)
 

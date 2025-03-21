@@ -166,9 +166,9 @@ class TaskGenerator(NodeInterface.Taskgen_T):
         #     pass
 
         self._initialized = True
-        self.rosparam[bool].set('initialized', True)
+        self.create_service(std_srvs.Empty, self.service_namespace('ready'), lambda *a, **kw: std_srvs.Empty.Response())
 
-    def _get_predefined_task(self, **kwargs):
+    def _get_predefined_task(self, **kwargs) -> Task:
         """
         Gets the task based on the passed mode
         """

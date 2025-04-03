@@ -25,10 +25,10 @@ contestants:
   name: crowdnav_follow_point
 - inter_planner: follow_point
   local_planner: drlvo
-  name: drlvo-follow_point
+  name: drlvo_follow_point
 - inter_planner: follow_point
   local_planner: dwb
-  name: dwb-follow_point
+  name: dwb_follow_point
 - inter_planner: follow_point
   local_planner: graceful
   name: graceful_follow_point
@@ -91,7 +91,7 @@ contestants:
   name: drlvo_navigate_to_replan_recovery
 - inter_planner: navigate_to_pose_w_replanning_and_recovery
   local_planner: dwb
-  name: dwb-navigate_to_replan_recovery
+  name: dwb_navigate_to_replan_recovery
 - inter_planner: navigate_to_pose_w_replanning_and_recovery
   local_planner: graceful
   name: graceful_navigate_to_replan_recovery
@@ -106,7 +106,7 @@ contestants:
   name: rotation_shim_navigate_to_replan_recovery
 - inter_planner: navigate_to_pose_w_replanning_goal_patience_and_recovery
   local_planner: crowdnav
-  name: crowdnav-navigate_to_replan_patience_recovery
+  name: crowdnav_navigate_to_replan_patience_recovery
 - inter_planner: navigate_to_pose_w_replanning_goal_patience_and_recovery
   local_planner: drlvo
   name: drlvo_navigate_to_replan_patience_recovery
@@ -121,13 +121,13 @@ contestants:
   name: mppi_navigate_to_replan_patience_recovery
 - inter_planner: navigate_to_pose_w_replanning_goal_patience_and_recovery
   local_planner: regulated_pure_pursuit
-  name: regulated_pure_pursuit-navigate_to_replan_patience_recovery
+  name: regulated_pure_pursuit_navigate_to_replan_patience_recovery
 - inter_planner: navigate_to_pose_w_replanning_goal_patience_and_recovery
   local_planner: rotation_shim
   name: rotation_shim_navigate_to_replan_patience_recovery
 - inter_planner: navigate_w_recovery_and_replanning_only_if_path_becomes_invalid
   local_planner: crowdnav
-  name: crowdnav-navigate_replan_recovery_valid
+  name: crowdnav_navigate_replan_recovery_valid
 - inter_planner: navigate_w_recovery_and_replanning_only_if_path_becomes_invalid
   local_planner: drlvo
   name: drlvo_navigate_replan_recovery_valid
@@ -136,7 +136,7 @@ contestants:
   name: dwb_navigate_replan_recovery_valid
 - inter_planner: navigate_w_recovery_and_replanning_only_if_path_becomes_invalid
   local_planner: graceful
-  name: graceful-navigate_replan_recovery_valid
+  name: graceful_navigate_replan_recovery_valid
 - inter_planner: navigate_w_recovery_and_replanning_only_if_path_becomes_invalid
   local_planner: mppi
   name: mppi_navigate_replan_recovery_valid
@@ -163,7 +163,7 @@ contestants:
   name: mppi_navigate_replan_distance
 - inter_planner: navigate_w_replanning_distance
   local_planner: regulated_pure_pursuit
-  name: regulated_pure_pursuit-navigate_replan_distance
+  name: regulated_pure_pursuit_navigate_replan_distance
 - inter_planner: navigate_w_replanning_distance
   local_planner: rotation_shim
   name: rotation_shim_navigate_replan_distance
@@ -172,10 +172,10 @@ contestants:
   name: crowdnav_navigate_replan_goal_updated
 - inter_planner: navigate_w_replanning_only_if_goal_is_updated
   local_planner: drlvo
-  name: drlvo-navigate_replan_goal_updated
+  name: drlvo_navigate_replan_goal_updated
 - inter_planner: navigate_w_replanning_only_if_goal_is_updated
   local_planner: dwb
-  name: dwb-navigate_replan_goal_updated
+  name: dwb_navigate_replan_goal_updated
 - inter_planner: navigate_w_replanning_only_if_goal_is_updated
   local_planner: graceful
   name: graceful_navigate_replan_goal_updated
@@ -211,7 +211,7 @@ contestants:
   name: rotation_shim_navigate_replan_path_invalid
 - inter_planner: navigate_w_replanning_speed
   local_planner: crowdnav
-  name: crowdnav-navigate_replan_speed
+  name: crowdnav_navigate_replan_speed
 - inter_planner: navigate_w_replanning_speed
   local_planner: drlvo
   name: drlvo_navigate_replan_speed

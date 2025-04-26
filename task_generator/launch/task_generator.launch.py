@@ -128,6 +128,9 @@ def generate_launch_description():
                 'configs',
                 'task_generator.yaml'
             ),
+            {
+                "use_sim_time": True,
+            }
         ],
     )
 

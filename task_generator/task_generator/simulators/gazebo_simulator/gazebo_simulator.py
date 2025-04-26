@@ -1,5 +1,7 @@
 import math
 import os
+import signal
+import sys
 import time
 import traceback
 import typing
@@ -176,19 +178,47 @@ class GazeboSimulator(BaseSimulator):
                         f"Failed to set initial pose for {name} after {max_attempts} attempts"
                     )
 
-                quat = quaternion_from_euler(0.0, 0.0, entity.position.orientation, axes="xyzs")
-                qx, qy, qz, qw = quat
+                def kill_callback(context):
+                    pid = context.locals.event.pid
+                    self.node.get_logger().warn("Destroying the static_transform_publisher node in 3 seconds.")
+                    self.node.get_logger().warn(f"sim time is {self.node.get_parameter('use_sim_time').value}.")
+
+                    def impl():
+                        self.node.get_logger().warn("Destroying the static_transform_publisher node after 3 seconds.")
+                        os.kill(pid, signal.SIGINT)
+
+                    # self.node.create_timer(
+                    #     0.0,
+                    #     impl,
+                    #     callback_group=rclpy.callback_groups.MutuallyExclusiveCallbackGroup(),
+                    # )
+                    time.sleep(3.0)
+                    impl()
+
                 transform_pub_node = launch_ros.actions.Node(
                     package="tf2_ros",
                     executable="static_transform_publisher",
                     name="map_to_odomframe_publisher",
-                    arguments=[str(entity.position.x), str(entity.position.y), "0", str(qx), str(qy), str(qz), str(qw), "map", entity.frame + "odom"],
+                    arguments=[
+                        '--x', f'{entity.position.x}',
+                        '--y', f'{entity.position.y}',
+                        '--yaw', f'{entity.position.orientation}',
+                        '--frame-id', 'map',
+                        '--child-frame-id', f'{entity.frame}odom'
+                    ],
                     parameters=[{'use_sim_time': True}],
                 )
-                self.node.do_launch(transform_pub_node)
-                time.sleep(1)
-                self.node.get_logger().info("Destroying the static_transform_publisher node after 3 seconds.")
-                # transform_pub_node.destroy_node() # won't work like this, a topic/service to trigger self-destruction
+
+                transform_pub_launch = launch.LaunchDescription([
+                    transform_pub_node,
+                    launch.actions.RegisterEventHandler(
+                        launch.event_handlers.OnProcessStart(
+                            target_action=transform_pub_node,
+                            on_start=[launch.actions.OpaqueFunction(function=kill_callback)],
+                        )
+                    )
+                ])
+                self.node.do_launch(transform_pub_launch)
 
             return result.success
 

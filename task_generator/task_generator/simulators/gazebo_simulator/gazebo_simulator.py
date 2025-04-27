@@ -195,6 +195,8 @@ class GazeboSimulator(BaseSimulator):
                     time.sleep(3.0)
                     impl()
 
+                qX, qY, qZ, qW = quaternion_from_euler(0.0, 0.0, entity.position.orientation, axes="xyzs")
+
                 transform_pub_node = launch_ros.actions.Node(
                     package="tf2_ros",
                     executable="static_transform_publisher",
@@ -202,7 +204,11 @@ class GazeboSimulator(BaseSimulator):
                     arguments=[
                         '--x', f'{entity.position.x}',
                         '--y', f'{entity.position.y}',
-                        '--yaw', f'{entity.position.orientation}',
+                        '--z', '0',
+                        '--qx', f'{qX}',
+                        '--qy', f'{qY}',
+                        '--qz', f'{qZ}',
+                        '--qw', f'{qW}',
                         '--frame-id', 'map',
                         '--child-frame-id', f'{entity.frame}odom'
                     ],

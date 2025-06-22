@@ -15,6 +15,7 @@ from task_generator.shared import DynamicObstacle, ModelType, Obstacle, Robot
 from task_generator.simulators import BaseSimulator
 import itertools
 
+
 @attrs.define()
 class _Service:
     type_: typing.Any
@@ -188,7 +189,7 @@ class IsaacSimulator(BaseSimulator):
                 raise  # Re-raise exception after logging
 
         self._logger.info("All walls spawned successfully.")
-        self._all_removed=False
+        self._all_removed = False
         return True
 
     # TODO: update
@@ -234,6 +235,8 @@ class IsaacSimulator(BaseSimulator):
 
     def _spawn_obstacle(self, obstacle: Obstacle) -> bool:
         model = obstacle.model.get([ModelType.USD])
+        if not model:
+            return
         usd_path = os.path.abspath(model.path)
         response = self.services.import_obstacle.client.call(
             ImportObstacles.Request(

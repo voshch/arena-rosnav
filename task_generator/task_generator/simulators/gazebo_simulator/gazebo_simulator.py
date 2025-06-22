@@ -196,10 +196,14 @@ class GazeboSimulator(BaseSimulator):
             request.entity_factory.name = entity.name
 
             # Get model description
-            model_description = entity.model.get(
+            model = entity.model.get(
                 [ModelType.SDF, ModelType.URDF],
                 loader_args=entity.asdict(),
-            ).description
+            )
+            if not model:
+                return False
+
+            model_description = model.description
 
             if isinstance(entity, Robot):
                 model_description = model_description.replace("jackal_default_name", entity.name)

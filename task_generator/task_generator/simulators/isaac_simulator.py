@@ -1,18 +1,29 @@
 import os
 import time
 import typing
+import random
 
 import arena_simulation_setup.entities.robot
 import attrs
 import rclpy
 import rclpy.client
-# Import dependencies.
-from isaacsim_msgs.srv import (DeletePrim, GetPrimAttributes, ImportObstacles,
-                               ImportUsd, MovePrim, Pedestrian, SpawnWall,
-                               UrdfToUsd)
 
+# Import dependencies.
+from isaacsim_msgs.srv import (
+    DeletePrim,
+    GetPrimAttributes,
+    ImportObstacles,
+    ImportUsd,
+    MovePrim,
+    Pedestrian,
+    SpawnWall,
+    UrdfToUsd,
+    MovePed,
+)
+from isaacsim_msgs.msg import Person, NavPed
 from task_generator.shared import DynamicObstacle, ModelType, Obstacle, Robot
 from task_generator.simulators import BaseSimulator
+import itertools
 
 
 @attrs.define()
@@ -42,6 +53,8 @@ class _Services(typing.NamedTuple):
     delete_prim: _Service
     spawn_wall: _Service
     import_pedestrians: _Service
+    move_pedestrians: _Service
+    delete_all_pedestrians: _Service
 
 
 class IsaacSimulator(BaseSimulator):
@@ -54,37 +67,23 @@ class IsaacSimulator(BaseSimulator):
 
         # Define services with their corresponding client attributes
         self.services = _Services(
-            urdf_to_usd=_Service(
-                type_=UrdfToUsd,
-                name='isaac/urdf_to_usd'
-            ),
-            import_usd=_Service(
-                type_=ImportUsd,
-                name='isaac/import_usd'
-            ),
-            delete_prim=_Service(
-                type_=DeletePrim,
-                name='isaac/delete_prim'
-            ),
+            urdf_to_usd=_Service(type_=UrdfToUsd, name="isaac/urdf_to_usd"),
+            import_usd=_Service(type_=ImportUsd, name="isaac/import_usd"),
+            delete_prim=_Service(type_=DeletePrim, name="isaac/delete_prim"),
             get_prim_attributes=_Service(
-                type_=GetPrimAttributes,
-                name='isaac/get_prim_attributes'
+                type_=GetPrimAttributes, name="isaac/get_prim_attributes"
             ),
-            move_prim=_Service(
-                type_=MovePrim,
-                name='isaac/move_prim'
-            ),
-            spawn_wall=_Service(
-                type_=SpawnWall,
-                name='isaac/spawn_wall'
-            ),
+            move_prim=_Service(type_=MovePrim, name="isaac/move_prim"),
+            spawn_wall=_Service(type_=SpawnWall, name="isaac/spawn_wall"),
             import_obstacle=_Service(
-                type_=ImportObstacles,
-                name='isaac/import_obstacle'
+                type_=ImportObstacles, name="isaac/import_obstacle"
             ),
             import_pedestrians=_Service(
-                type_=Pedestrian,
-                name='isaac/spawn_pedestrian'
+                type_=Pedestrian, name="isaac/spawn_pedestrian"
+            ),
+            move_pedestrians=_Service(type_=MovePed, name="isaac/move_pedestrians"),
+            delete_all_pedestrians=_Service(
+                type_=DeletePrim, name="isaac/delete_all_pedestrians"
             ),
         )
 
@@ -99,17 +98,18 @@ class IsaacSimulator(BaseSimulator):
             # Wait for the service to become available
             timeout_sec = 10.0
             while not service.client.wait_for_service(timeout_sec=timeout_sec):
-                self._logger.warning(f'Service "{service.name}" not available after waiting {timeout_sec}s')
+                self._logger.warning(
+                    f'Service "{service.name}" not available after waiting {timeout_sec}s'
+                )
                 # raise TimeoutError(f'Service "{service_name}" not available')
 
             self._logger.info(f'Service "{service.name}" is now available.')
 
+        self.ped_dict = {}
         self._logger.info("All service clients initialized and available.")
 
     def spawn_entity(self, entity):
-        self._logger.info(
-            f"Attempting to spawn model: {entity.name}"
-        )
+        self._logger.info(f"Attempting to spawn model: {entity.name}")
 
         if isinstance(entity, DynamicObstacle):
             return self._spawn_pedestrian(entity)
@@ -121,14 +121,12 @@ class IsaacSimulator(BaseSimulator):
         return self._spawn_obstacle(entity)
 
     def move_entity(self, name, pose):
-        self._logger.info(
-            f"Attempting to move entitiy: {name}"
-        )
+        self._logger.info(f"Attempting to move entitiy: {name}")
 
         self._logger.info(f"position: {pose.position.x,pose.position.y}")
         self._logger.info(f"orientation: {pose.orientation}")
 
-        response = self.services.move_prim.client.call_async(
+        response = self.services.move_prim.client.call(
             MovePrim.Request(
                 name=name,
                 pose=pose.to_msg(),
@@ -136,15 +134,17 @@ class IsaacSimulator(BaseSimulator):
         )
         if response is None:
             raise RuntimeError(f'failed to move entity: service timed out')
-
+        self._all_removed = False
         return True
 
     def delete_entity(self, name):
+        if self._all_removed == True:
+            return True
         self._logger.info(
             f"Attempting to delete prim named {name}"
         )
 
-        response = self.services.delete_prim.client.call_async(
+        response = self.services.delete_prim.client.call(
             DeletePrim.Request(
                 name=name
             )
@@ -154,26 +154,22 @@ class IsaacSimulator(BaseSimulator):
 
         # TODO
         if response is None:
-            raise RuntimeError(
-                f'failed to delete entity: service timed out')
+            raise RuntimeError(f"failed to delete entity: service timed out")
 
     def spawn_walls(self, walls):
         # return True
-        self._logger.info(
-            f"Attempting to spawn walls"
-        )
+        self._logger.info(f"Attempting to spawn walls")
 
-        self.delete_walls()
+        # self.delete_walls()
         time.sleep(0.01)
-
         for i, wall in enumerate(walls):
             try:
                 # print(f"wall {i+1}: {wall}")
                 start = [wall.Start.x, wall.Start.y]
                 end = [wall.End.x, wall.End.y]
-                future = self.services.spawn_wall.client.call_async(
+                future = self.services.spawn_wall.client.call(
                     SpawnWall.Request(
-                        name=f"wall_{i+1}",
+                        name=f"wall_{next(self.wall_counter)}",
                         start=start,
                         end=end,
                         height=wall.height
@@ -187,10 +183,13 @@ class IsaacSimulator(BaseSimulator):
                 raise  # Re-raise exception after logging
 
         self._logger.info("All walls spawned successfully.")
+        self._all_removed = False
         return True
 
     # TODO: update
     def before_reset_task(self):
+        self._delete_all_pedestrians("/pedestrians")
+        # time.sleep(0.5)
         return True
 
     # TODO: update
@@ -200,6 +199,84 @@ class IsaacSimulator(BaseSimulator):
     def _spawn_pedestrian(self, pedestrian: DynamicObstacle) -> bool:
         # TODO
         # implement externally managed pedestrians
+        model_name = random.choice(
+            [
+                # "F_Business_02",
+                # "F_Medical_01",
+                # "M_Medical_01",
+                # "biped_demo",
+                # "female_adult_police_01_new",
+                # "female_adult_police_02",
+                # "female_adult_police_03_new",
+                # "male_adult_construction_01_new",
+                # "male_adult_construction_03",
+                # "male_adult_construction_05_new",
+                # "male_adult_police_04",
+                "original_female_adult_business_02",
+                "original_female_adult_medical_01",
+                "original_female_adult_police_01",
+                "original_female_adult_police_02",
+                "original_female_adult_police_03",
+                "original_male_adult_construction_01",
+                "original_male_adult_construction_02",
+                "original_male_adult_construction_03",
+                "original_male_adult_construction_05",
+                "original_male_adult_medical_01",
+                "original_male_adult_police_04",
+            ]
+        )
+        # new_name = pedestrian.name + str(self.num_of_peds)
+        self.ped_dict[pedestrian.name] = model_name
+        self.services.import_pedestrians.client.call(
+            Pedestrian.Request(
+                people=[
+                    Person(
+                        stage_prefix=pedestrian.name,
+                        character_name=model_name,
+                        initial_pose=[
+                            pedestrian.pose.position.x,
+                            pedestrian.pose.position.y,
+                            0.0,
+                        ],
+                        orientation=pedestrian.pose.orientation.to_yaw(),
+                        controller_stats=False,
+                    )
+                ]
+            )
+        )
+        nav_ped = NavPed()
+        nav_ped.path = (
+            os.path.join(
+                pedestrian.name,
+                # model_name,
+                "ManRoot",
+                model_name.removeprefix("original_"),
+            )
+        )
+        nav_ped.goal_pose = [
+            pedestrian.waypoints[-1].x,
+            pedestrian.waypoints[-1].y,
+            0.0,
+        ]
+        # nav_ped.goal_pose = [5.0, 2.0, 0.0]
+        nav_ped.velocity = 0.5
+        req = MovePed.Request()
+        req.nav_list = [nav_ped]
+        self._move_pedestrian(req)
+        # self.num_of_peds += 1
+        return True
+
+    def _move_pedestrian(self, nav_list: MovePed.Request):
+        response = self.services.move_pedestrians.client.call(nav_list)
+        return True
+
+    def _delete_all_pedestrians(self, prim_path):
+        self._logger.info(f"Attempting to delete prim named {prim_path}")
+
+        response = self.services.delete_all_pedestrians.client.call(
+            DeletePrim.Request(name=prim_path)
+        )
+
         return True
 
     def _spawn_robot(self, robot: Robot) -> bool:
@@ -211,7 +288,7 @@ class IsaacSimulator(BaseSimulator):
             loader_args=robot.asdict(),
         )
         if model.type == ModelType.URDF:
-            robot_params = arena_simulation_setup.entities.robot.Robot(robot.model.name)
+            robot_params = arena_simulation_setup.entities.robot.Robot(robot.model.name).model_params
 
             response = self.services.urdf_to_usd.client.call(
                 UrdfToUsd.Request(
@@ -228,12 +305,14 @@ class IsaacSimulator(BaseSimulator):
             return True
 
         # TODO
-        raise NotImplementedError(f"robot model of type {model.type} can't be spawned by {self.__class__.__name__}")
+        raise NotImplementedError(
+            f"robot model of type {model.type} can't be spawned by {self.__class__.__name__}"
+        )
 
     def _spawn_obstacle(self, obstacle: Obstacle) -> bool:
         model = obstacle.model.get([ModelType.USD])
         usd_path = os.path.abspath(model.path)
-        response = self.services.import_obstacle.client.call_async(
+        response = self.services.import_obstacle.client.call(
             ImportObstacles.Request(
                 name=obstacle.name,
                 usd_path=usd_path,
@@ -249,13 +328,16 @@ class IsaacSimulator(BaseSimulator):
             namespace: Namespace for the simulator
         """
 
-        self._logger.info(
-            f"Initializing IsaacSimulator with namespace: {namespace}")
+        self._logger.info(f"Initializing IsaacSimulator with namespace: {namespace}")
 
         self.init_service_clients()
-
+        self.wall_counter = itertools.count()
+        self._all_removed: bool = True
         self._logger.info(
             f"Done initializing Isaac Sim")
 
-    def delete_walls(self):
+    def remove_walls(self):
         self.delete_entity('walls')
+        self.delete_entity('obstacles')
+        self._all_removed = True
+        return True

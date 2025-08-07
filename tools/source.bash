@@ -48,10 +48,7 @@ if [ -f install/local_setup.bash ] ; then
 fi 
 
 if [ -f "$INSTALLED" ] && grep -q "isaac.sh" "$INSTALLED"; then
-    if [ -z ${ISAAC_PATH+x} ] ; then
-        source "$HOME/isaacsim-4.2.0/setup.bash"
-        source "$HOME/isaacsim-4.2.0/setup.bash"
-    fi
+    export OMNI_KIT_ACCEPT_EULA=YES
 fi
 
 trap - ERR

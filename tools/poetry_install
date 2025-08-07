@@ -5,9 +5,12 @@ pyenv install -s "${PYTHON_VERSION}"
 pyenv local "${PYTHON_VERSION}"
 export PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring 
 
-pushd src/arena/arena-rosnav || exit
-        $HOME/.local/bin/poetry self update
-        $HOME/.local/bin/poetry env use "${PYTHON_VERSION}"
-        $HOME/.local/bin/poetry install || ($HOME/.local/bin/poetry lock -n && $HOME/.local/bin/poetry install)
-        . "$("$HOME/.local/bin/poetry" env info -p)/bin/activate"
-popd || exit
+pushd src/arena/arena-rosnav || return 1
+        "$HOME"/.local/bin/poetry self update
+        "$HOME"/.local/bin/poetry env use ${PYTHON_VERSION}
+        "$HOME"/.local/bin/poetry install || ("$HOME"/.local/bin/poetry lock -n && "$HOME"/.local/bin/poetry install "$@")
+        . "$("$HOME"/.local/bin/poetry env info -p)/bin/activate"
+popd || return 1
+
+cd "$ARENA_WS_DIR" || return 1
+return 0

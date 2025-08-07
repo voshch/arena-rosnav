@@ -20,7 +20,7 @@ export ARENA_ROS_DISTRO=${ARENA_ROS_DISTRO:-humble}
 # == read inputs ==
 echo 'Configuring arena-rosnav...'
 
-ARENA_WS_DIR=${ARENA_WS_DIR:-~/arena4_ws}
+ARENA_WS_DIR=${ARENA_WS_DIR:-~/arena5_ws}
 read -rp "arena-rosnav workspace directory [${ARENA_WS_DIR}] " INPUT
 ARENA_WS_DIR=$(realpath "$(eval echo "${INPUT:-${ARENA_WS_DIR}}")")
 export ARENA_WS_DIR

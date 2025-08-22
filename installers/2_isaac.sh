@@ -22,14 +22,17 @@ echo "nvidia-driver was installed"
 # python -m pip install typeguard
 
 echo "Installing Isaac Sim ..."
-. src/arena/arena-rosnav/tools/poetry_install --with isaac
+pushd src/arena/arena-rosnav || exit 1
+    rm src/arena/arena-rosnav/poetry.lock
+    poetry install --with isaac
+popd || exit 1
 
 echo "Remove conflicting packages ..."
 _VENV_PATH=$(cd src/arena/arena-rosnav && poetry env info --path)
-rm -r "$_VENV_PATH"/lib/python3.10/site-packages/isaacsim/extscache/*.cp310/pip_prebundle/attrs
-rm -r "$_VENV_PATH"/lib/python3.10/site-packages/isaacsim/extscache/*.cp310/pip_prebundle/attr
-rm -r "$_VENV_PATH"/lib/python3.10/site-packages/isaacsim/extscache/*.cp310/pip_prebundle/typing_extensions.py
-rm -r "$_VENV_PATH"/lib/python3.10/site-packages/omni/data/Kit/Isaac-Sim\ Python/4.5/exts/3/*.cp310/pip_prebundle/typing_extensions.py
+rm -rf "$_VENV_PATH"/lib/python3.10/site-packages/isaacsim/extscache/*.cp310/pip_prebundle/attrs
+rm -rf "$_VENV_PATH"/lib/python3.10/site-packages/isaacsim/extscache/*.cp310/pip_prebundle/attr
+rm -rf "$_VENV_PATH"/lib/python3.10/site-packages/isaacsim/extscache/*.cp310/pip_prebundle/typing_extensions.py
+rm -rf "$_VENV_PATH"/lib/python3.10/site-packages/omni/data/Kit/Isaac-Sim\ Python/4.5/exts/3/*.cp310/pip_prebundle/typing_extensions.py
 unset _VENV_PATH
 
 if [ ! -f ~/.ros/fastdds.xml ]; then

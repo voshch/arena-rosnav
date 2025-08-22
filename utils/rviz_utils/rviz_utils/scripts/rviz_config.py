@@ -85,24 +85,33 @@ class ConfigFileGenerator(Node):
             'Displays': []
         }
 
+
         # Check if pedestrian topics exist
         pedestrian_topics = []
         for topic_name, topic_types in self.topics:
-            # Check for namespaced people topics
-            if topic_name.endswith('/people') and 'people_msgs/msg/People' in topic_types:
+            if topic_name.endswith('/arena_peds') and 'arena_people_msgs/msg/Pedestrians' in topic_types:
+                pedestrian_topics.append((topic_name, 'arena_people_msgs/msg/Pedestrians'))
+            # Check for converted pedestrian markers
+            elif topic_name.endswith('/pedestrian_markers') and 'visualization_msgs/msg/MarkerArray' in topic_types:
+                pedestrian_topics.append((topic_name, 'visualization_msgs/msg/MarkerArray'))
+            # Check for legacy people topics (fallback)
+            elif topic_name.endswith('/people') and 'people_msgs/msg/People' in topic_types:
                 pedestrian_topics.append((topic_name, 'people_msgs/msg/People'))
             elif topic_name.endswith('/human_states') and 'hunav_msgs/msg/Agents' in topic_types:
                 pedestrian_topics.append((topic_name, 'hunav_msgs/msg/Agents'))
-            elif topic_name.endswith('/pedestrian_markers') and 'visualization_msgs/msg/MarkerArray' in topic_types:
-                pedestrian_topics.append((topic_name, 'visualization_msgs/msg/MarkerArray'))
 
         if not pedestrian_topics:
             self.get_logger().info("No pedestrian topics found. Pedestrian group will be empty.")
             return pedestrian_group
 
         # Add displays for found pedestrian topics
+        # Add displays for found pedestrian topics
         for topic_name, topic_type in pedestrian_topics:
-            if topic_type == 'visualization_msgs/msg/MarkerArray':
+            if topic_type == 'arena_people_msgs/msg/Pedestrians':
+                self.get_logger().info(f"Found arena_peds topic: {topic_name} - using pedestrian_markers")
+                # Note: We rely on pedestrian_marker_publisher to convert this to MarkerArray
+                
+            elif topic_type == 'visualization_msgs/msg/MarkerArray':
                 # Use MarkerArray display for converted pedestrian markers
                 display = Utils.Displays.pedestrians(topic_name)
                 pedestrian_group['Displays'].append(display)
@@ -128,7 +137,7 @@ class ConfigFileGenerator(Node):
             'Show Arrows': True,
             'Show Axes': False,
             'Show Names': True,
-            # No static tree - frames will be discovered dynamically by RViz
+            
         }
         pedestrian_group['Displays'].append(tf_display)
 

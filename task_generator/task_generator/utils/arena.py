@@ -1,5 +1,3 @@
-
-
 import os
 
 import nav_msgs.msg as nav_msgs

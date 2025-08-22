@@ -28,6 +28,12 @@ class DummyHumanSimulator(BaseHumanSimulator):
     ) -> bool:
         return True
 
+    def _spawn_doors_impl(
+        self,
+        doors,
+    ) -> bool:
+        return True
+
     def _spawn_robot_impl(
         self,
         robot,

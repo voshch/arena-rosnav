@@ -4,10 +4,10 @@ from collections.abc import Callable, Collection, Iterator
 from typing import Any
 
 import attrs
+from arena_simulation_setup.worlds.world import WorldDescription
 
 from task_generator import NodeInterface
-from arena_simulation_setup.worlds.world import WorldDescription
-from task_generator.shared import (DynamicObstacle, Entity, Obstacle,
+from task_generator.shared import (Door, DynamicObstacle, Entity, Obstacle,
                                    Orientation, Pose, Position, Robot, Wall)
 from task_generator.simulators.human import BaseHumanSimulator
 from task_generator.simulators.human.utils import ObstacleLayer
@@ -67,6 +67,16 @@ class _Realizer:
             end=self._realize_position(wall.end),
         )
 
+    @typing.overload
+    def realize(self, target: Door) -> Door: ...
+
+    def _realize_door(self, door: Door) -> Door:
+        return attrs.evolve(
+            door,
+            start=self._realize_position(door.start),
+            end=self._realize_position(door.end),
+        )
+
     def realize(
         self,
         target
@@ -85,6 +95,9 @@ class _Realizer:
 
         if isinstance(target, Wall):
             return self._realize_wall(target)
+
+        if isinstance(target, Door):
+            return self._realize_door(target)
 
         raise TypeError(f'realization not implemented for type {type(target)}')
 
@@ -125,13 +138,25 @@ class EnvironmentManager(NodeInterface, _Realizer):
         the map file is retrieved from launch parameter "world"
         """
 
-        walls = list(world.all_walls)
+        walls = world.all_walls
+        doors = world.all_doors
+        floors = list(world.all_floors)
 
-        if walls:
-            self._human_simulator.spawn_walls(list(map(self._realize_wall, walls)))
+        realized_doors = list(map(self._realize_door, doors))
+        if realized_doors:
+            self._simulator.spawn_doors(realized_doors)
+
+        if walls or doors:
+            self._human_simulator.spawn_world(
+                list(map(self._realize_wall, walls)),
+                realized_doors,
+            )
+        if floors:
+            self._logger.debug(f'spawning {len(floors)}')
+            self._simulator.spawn_floors(list(floors))
         self._human_simulator.spawn_obstacles(
             list(map(self._realize_entity, world.all_static_entities)),
-            layer=ObstacleLayer.WORLD
+            layer=ObstacleLayer.WORLD,
         )
 
     def spawn_dynamic_obstacles(self, setups: Collection[DynamicObstacle]):

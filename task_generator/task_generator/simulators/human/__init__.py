@@ -9,7 +9,7 @@ from geometry_msgs.msg import PoseStamped
 
 from task_generator import NodeInterface
 from task_generator.constants import Constants
-from task_generator.shared import DynamicObstacle, Obstacle, Pose, Robot, Wall
+from task_generator.shared import DynamicObstacle, Obstacle, Pose, Robot, Wall, Floor, Door
 from task_generator.simulators.human.utils import KnownObstacles, ObstacleLayer
 from task_generator.simulators.sim import BaseSim
 from task_generator.utils.registry import Registry
@@ -115,16 +115,21 @@ class BaseHumanSimulator(NodeInterface, abc.ABC):
                 if self._simulator.spawn_entity(known.obstacle):
                     known.layer = ObstacleLayer.INUSE
 
-    def spawn_walls(
+    def spawn_world(
         self,
-        walls: Sequence[Wall]
+        walls: Sequence[Wall],
+        doors: Sequence[Door],
     ):
         """
-        Adds walls to the simulator.
+        Adds walls and doors to the simulator.
         """
-        self._logger.debug(f'spawning {len(walls)} walls')
+        self._logger.debug(f'spawning {len(walls)} walls and {len(doors)} doors')
+        # Ensure doors are spawned first so wall-spawn logic can split walls
+        # and create gaps where doors are present.
+        self._simulator.spawn_doors(list(doors))
         self._simulator.spawn_walls(list(walls))
         self._spawn_walls_impl(walls)
+        self._spawn_doors_impl(doors)
 
     def unuse_obstacles(self):
         """
@@ -147,7 +152,7 @@ class BaseHumanSimulator(NodeInterface, abc.ABC):
         """
         self._logger.debug(f'removing obstacles (level {purge})')
         if purge >= ObstacleLayer.WORLD:
-            self._simulator.remove_walls()
+            self._simulator.remove_walls_doors()
         for obstacle_id, obstacle in list(self._known_obstacles.items()):
             if purge >= obstacle.layer:
                 self._simulator.delete_entity(name=obstacle_id)
@@ -218,6 +223,13 @@ class BaseHumanSimulator(NodeInterface, abc.ABC):
     def _spawn_walls_impl(
         self,
         walls: Sequence[Wall],
+    ) -> bool:
+        ...
+
+    @abc.abstractmethod
+    def _spawn_doors_impl(
+        self,
+        doors: Sequence[Door],
     ) -> bool:
         ...
 

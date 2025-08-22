@@ -8,7 +8,7 @@ import attrs
 import rclpy
 import rclpy.node
 from arena_simulation_setup.shared import Robot as Robot_
-from arena_simulation_setup.shared import DynamicObstacle, Entity, Obstacle, Wall  # noqa
+from arena_simulation_setup.shared import DynamicObstacle, Entity, Obstacle, Wall, Floor, Door  # noqa
 from arena_simulation_setup.utils.geometry import (Orientation, Pose, Position, PositionRadius)  # noqa
 from arena_simulation_setup.utils.models import (Model, ModelType, ModelWrapper)  # noqa
 

@@ -363,7 +363,7 @@ class GazeboSimulator(BaseSim):
         self._logger.info("Goal published")
 
     def spawn_walls(self, walls) -> bool:
-        self.remove_walls()  # Clear existing walls
+        self.remove_walls_doors()  # Clear existing walls
         for wall in walls:
             wall_name = self.node._environment_manager.realize(f"wall_{next(self._wall_counter)}")
             # wall_positions = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]  # A square wall
@@ -405,7 +405,7 @@ class GazeboSimulator(BaseSim):
 
         return True
 
-    def remove_walls(self) -> bool:
+    def remove_walls_doors(self) -> bool:
         for entity in self._walls_entities:
             self.delete_entity(entity)
         self._walls_entities = []

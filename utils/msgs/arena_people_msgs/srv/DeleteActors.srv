@@ -1,0 +1,5 @@
+# Request
+---
+# Response  
+bool success
+int32 deleted_count

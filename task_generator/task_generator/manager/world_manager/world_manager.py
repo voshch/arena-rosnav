@@ -5,7 +5,7 @@ from typing import Optional
 
 import numpy as np
 import scipy.signal
-from arena_simulation_setup.shared import Position, PositionRadius, Wall
+from arena_simulation_setup.shared import Position, PositionRadius, Wall, Floor
 from arena_simulation_setup.worlds.world import WorldDescription
 
 from task_generator import NodeInterface

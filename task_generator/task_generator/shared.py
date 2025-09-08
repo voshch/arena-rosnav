@@ -1,18 +1,31 @@
 from __future__ import annotations
-from arena_rclpy_mixins.shared import Namespace
 
+import functools
 import typing
 from typing import Optional, Type, TypeVar
 
 import attrs
 import rclpy
 import rclpy.node
+from arena_rclpy_mixins.shared import Namespace
+from arena_simulation_setup.shared import (  # noqa
+    CustomDynamicObstacle,
+    Door,
+    DynamicObstacle,
+    Entity,
+    Floor,
+    Obstacle,
+    Wall,
+)
 from arena_simulation_setup.shared import Robot as Robot_
 from arena_simulation_setup.utils.cattrs import register_parse
-
-from arena_simulation_setup.shared import DynamicObstacle, CustomDynamicObstacle, Entity, Obstacle, Wall, Floor, Door  # noqa
-from arena_simulation_setup.utils.geometry import (Orientation, Pose, Position, PositionRadius)  # noqa
-from arena_simulation_setup.utils.models import (Model, ModelType, ModelWrapper)  # noqa
+from arena_simulation_setup.utils.geometry import (  # noqa
+    Orientation,
+    Pose,
+    Position,
+    PositionRadius,
+)
+from arena_simulation_setup.utils.models import Model, ModelType, ModelWrapper  # noqa
 
 
 def configure_node(node: rclpy.node.Node):
@@ -46,7 +59,7 @@ def rosparam_set(
 
 
 @register_parse
-@attrs.define
+@attrs.define()
 class Robot(Robot_):
     inter_planner: str
     local_planner: str
@@ -99,3 +112,15 @@ class Robot(Robot_):
             record_data_dir=record_data,
             extra=value,
         )
+
+    def __attrs_post_init__(self):
+        # Inject robot model parameters into model loader
+
+        def inject_args(f):
+            """
+            Inject common robot attributes into model get call
+            """
+            def inner(only: list[ModelType], loader_args: dict | None = None):
+                return f(only, loader_args=self.asdict() if loader_args is None else {**self.asdict(), **loader_args})
+            return inner
+        self.model._get = inject_args(self.model._get)

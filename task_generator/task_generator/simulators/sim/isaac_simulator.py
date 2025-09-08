@@ -104,11 +104,10 @@ class IsaacSimulator(BaseSim):
         def impl(robot: Robot) -> bool:
             try:
                 model = robot.model.get(
-                    [
+                    (
                         ModelType.URDF,
                         # ModelType.USD
-                    ],
-                    loader_args=robot.asdict(),
+                    )
                 )
 
                 if model.type == ModelType.URDF:
@@ -162,8 +161,13 @@ class IsaacSimulator(BaseSim):
     def obstacle_spawn(self, obstacles):
         req = SpawnPrims.Request()
 
-        for obstacle in obstacles:
+        results = [True] * len(obstacles)
+
+        for i, obstacle in enumerate(obstacles):
             model = obstacle.model.get([ModelType.USD])
+            if model.type is ModelType.UNKNOWN:
+                results[i] = False
+                continue
             prim = Prim()
             prim.usd_path = model.path
             prim.name = self._NS_PRIM(obstacle.name)
@@ -171,8 +175,9 @@ class IsaacSimulator(BaseSim):
             req.prims.append(prim)
 
         response = self._services.SpawnPrims.client.call(req)
+        response_iter = iter(response.ret)
 
-        return response.ret
+        return tuple(a and next(response_iter) for a in results)
 
     def obstacle_move(self, obstacles):
         def move_obstacle(obstacle: Obstacle) -> bool:
@@ -236,10 +241,12 @@ class IsaacSimulator(BaseSim):
                     self._logger.error(repr(e))
                     traceback.print_exc(file=sys.stderr)
 
-            for obstacle in obstacles:
+            for i, obstacle in enumerate(obstacles):
                 try:
                     prim_name = self.node._environment_manager.realize(f"obstacle_{next(self._wall_counter)}")
-                    model = obstacle.model.get([ModelType.USD])
+                    model = obstacle.model.get(ModelType.USD)
+                    if model.type is ModelType.UNKNOWN:
+                        continue
                     prim = Prim()
                     prim.usd_path = model.path
                     prim.name = self._NS_WALL(prim_name)

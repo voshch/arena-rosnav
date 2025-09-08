@@ -61,8 +61,10 @@ class GazeboSimulator(BaseSim):
         success = tuple(map(self._spawn_entity, robots))
         for robot, succeeded in zip(robots, success):
             if succeeded:
-                model_description = robot.model.get([ModelType.URDF]).description
-                model_description = model_description.replace("jackal_default_name", robot.name)
+                model = robot.model.get(ModelType.URDF)
+                if model.type is ModelType.UNKNOWN:
+                    continue
+                model_description = model.description
                 self._robot_initialpose(robot)
                 self._robot_bridge(robot, model_description)
         return success
@@ -143,11 +145,12 @@ class GazeboSimulator(BaseSim):
             request.entity_factory.name = entity.name
 
             # Get model description
-            model_description = entity.model.get(
-                [ModelType.SDF, ModelType.URDF],
-                loader_args=entity.asdict(),
-            ).description
+            model = entity.model.get((ModelType.SDF, ModelType.URDF))
 
+            if model.type is ModelType.UNKNOWN:
+                return False
+
+            model_description = model.description
             request.entity_factory.sdf = model_description
 
             # Set pose

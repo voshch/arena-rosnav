@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import functools
 import typing
 from typing import Optional, Type, TypeVar
 
@@ -18,7 +17,6 @@ from arena_simulation_setup.shared import (  # noqa
     Wall,
 )
 from arena_simulation_setup.shared import Robot as Robot_
-from arena_simulation_setup.utils.cattrs import register_parse
 from arena_simulation_setup.utils.geometry import (  # noqa
     Orientation,
     Pose,
@@ -58,7 +56,6 @@ def rosparam_set(
     return _node.rosparam.set(param_name, value)
 
 
-@register_parse
 @attrs.define()
 class Robot(Robot_):
     inter_planner: str

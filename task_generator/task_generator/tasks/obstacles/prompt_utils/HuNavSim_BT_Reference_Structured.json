@@ -1,0 +1,781 @@
+{
+  "Doc title": "HuNavSim 2.0 Behaviour-Tree Nodes Reference",
+  "Units": "Distances in metres [m] · Angles in radians [rad] · Times in seconds [s]",
+  "Node categories": {
+    "Condition node": [
+      {
+        "name": "RandomChanceCondition",
+        "purpose": "Succeeds probabilistically based on a given chance.",
+        "inputs": [
+          {
+            "name": "probability",
+            "type": "double",
+            "description": "Chance of success (0.0-1.0).",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "IsRobotFacingAgent",
+        "purpose": "Checks if the robot is oriented towards the agent.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent.",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "IsAgentVisible",
+        "purpose": "Determines if a target agent is visible to an observer.",
+        "inputs": [
+          {
+            "name": "observer_id",
+            "type": "int",
+            "description": "Identifier of the observing agent.",
+            "required": true
+          },
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the target agent.",
+            "required": true
+          },
+          {
+            "name": "distance",
+            "type": "double",
+            "description": "Visibility distance threshold [m].",
+            "required": true
+          },
+          {
+            "name": "field_of_view",
+            "type": "double",
+            "description": "It defines how wide the observer’s vision is. It’s value is half of field of view angle (symmetric left and right of the forward axis) [rad].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "IsRobotClose",
+        "purpose": "Evaluates whether the robot is within a threshold distance of the agent.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent.",
+            "required": true
+          },
+          {
+            "name": "threshold",
+            "type": "double",
+            "description": "Distance threshold for close proximity [m].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "IsAgentClose",
+        "purpose": "Determines whether one agent is within a close distance of another agent.",
+        "inputs": [
+          {
+            "name": "observer_id",
+            "type": "int",
+            "description": "Identifier of the observing agent.",
+            "required": true
+          },
+          {
+            "name": "target_agent_id",
+            "type": "int",
+            "description": "Identifier of the target agent.",
+            "required": true
+          },
+          {
+            "name": "threshold",
+            "type": "double",
+            "description": "Distance threshold for close proximity [m].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "IsAtPosition",
+        "purpose": "Checks if the agent has reached a specified goal position within a tolerance.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent.",
+            "required": true
+          },
+          {
+            "name": "goal_id",
+            "type": "int",
+            "description": "Target goal ID.",
+            "required": true
+          },
+          {
+            "name": "tolerance",
+            "type": "double",
+            "description": "Acceptable distance tolerance to consider 'at goal' [m].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "IsAnyoneSpeaking",
+        "purpose": "Evaluates whether any agent within a given distance is speaking over a specified duration.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent checking for speakers.",
+            "required": true
+          },
+          {
+            "name": "time_step",
+            "type": "double",
+            "description": "Time step for movement updates [s].",
+            "required": true
+          },
+          {
+            "name": "distance_threshold",
+            "type": "double",
+            "description": "Maximum distance within which speaking is detected [m].",
+            "required": true
+          },
+          {
+            "name": "duration",
+            "type": "double",
+            "description": "Duration over which the speaking condition is evaluated [s].",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "speaker_id",
+            "type": "int",
+            "description": "Identifier of the detected speaking agent."
+          }
+        ]
+      },
+      {
+        "name": "IsSpeaking",
+        "purpose": "Checks whether a specified agent is speaking within a distance threshold over a duration.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent checking for the speaker.",
+            "required": true
+          },
+          {
+            "name": "time_step",
+            "type": "double",
+            "description": "Time step for movement updates [s].",
+            "required": true
+          },
+          {
+            "name": "target_id",
+            "type": "int",
+            "description": "Identifier of the agent whose speaking status is evaluated.",
+            "required": true
+          },
+          {
+            "name": "distance_threshold",
+            "type": "double",
+            "description": "Distance range for detecting the speaking condition [m].",
+            "required": true
+          },
+          {
+            "name": "duration",
+            "type": "double",
+            "description": "Duration over which the condition is considered [s].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "IsAnyoneLookingAtMe",
+        "purpose": "Determines if any agent is looking at the agent over a specified duration and angle/distance thresholds.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent being observed.",
+            "required": true
+          },
+          {
+            "name": "time_step",
+            "type": "double",
+            "description": "Time step for movement updates [s].",
+            "required": true
+          },
+          {
+            "name": "distance_threshold",
+            "type": "double",
+            "description": "Maximum distance for detecting potential observers [m].",
+            "required": true
+          },
+          {
+            "name": "angle_threshold",
+            "type": "double",
+            "description": "Angular threshold specifying how precisely the observer must be aligned [rad].",
+            "required": true
+          },
+          {
+            "name": "duration",
+            "type": "double",
+            "description": "Duration that the condition must persist [s].",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "observer_id",
+            "type": "int",
+            "description": "Identifier of the agent that is looking at the target agent."
+          }
+        ]
+      },
+      {
+        "name": "IsLookingAtMe",
+        "purpose": "Checks whether a specified target agent is looking at the agent over a defined time, distance, and angle.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent being looked at.",
+            "required": true
+          },
+          {
+            "name": "time_step",
+            "type": "double",
+            "description": "Time step for movement updates [s].",
+            "required": true
+          },
+          {
+            "name": "target_id",
+            "type": "int",
+            "description": "Identifier of the target agent that is potentially looking.",
+            "required": true
+          },
+          {
+            "name": "distance_threshold",
+            "type": "double",
+            "description": "Maximum range to detect the look direction [m].",
+            "required": true
+          },
+          {
+            "name": "angle_threshold",
+            "type": "double",
+            "description": "Angular threshold for the looking condition [rad].",
+            "required": true
+          },
+          {
+            "name": "duration",
+            "type": "double",
+            "description": "Duration over which the condition is checked [s].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      }
+    ],
+    "Action node": [
+      {
+        "name": "FindNearestAgent",
+        "purpose": "Identifies the nearest agent relative to a given agent.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the querying agent.",
+            "required": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "target_agent_id",
+            "type": "int",
+            "description": "Identifier of the nearest agent found."
+          }
+        ]
+      },
+      {
+        "name": "SaySomething",
+        "purpose": "Commands the agent to publish a ROS message.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the speaking agent.",
+            "required": true
+          },
+          {
+            "name": "message",
+            "type": "string",
+            "description": "The message to be published.",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "SetGroupId",
+        "purpose": "Sets the group identifier for the agent.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent.",
+            "required": true
+          },
+          {
+            "name": "group_id",
+            "type": "int",
+            "description": "New group identifier.",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "SetGoal",
+        "purpose": "Establishes a navigation target by setting a goal position.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent.",
+            "required": true
+          },
+          {
+            "name": "target_x",
+            "type": "double",
+            "description": "X-Coordinate of the target goal position.",
+            "required": true
+          },
+          {
+            "name": "target_y",
+            "type": "double",
+            "description": "Y-Coordinate of the target goal position.",
+            "required": true
+          },
+          {
+            "name": "goal_id",
+            "type": "int",
+            "description": "Goal ID of the target goal.",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "StopMovement",
+        "purpose": "Commands the agent to immediately halt all movement (stay idle).",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent.",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "ResumeMovement",
+        "purpose": "Instructs the agent to resume movement after being stopped.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent.",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "StopAndWaitTimerAction",
+        "purpose": "Implements a stop‑and‑wait behaviour that stops the agent for a defined duration.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent.",
+            "required": true
+          },
+          {
+            "name": "wait_duration",
+            "type": "double",
+            "description": "Duration for which the agent should wait [s].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "ConversationFormation",
+        "purpose": "Manages the formation of a conversation among multiple agents.",
+        "inputs": [
+          {
+            "name": "main_agent_id",
+            "type": "int",
+            "description": "Identifier of the primary agent leading the conversation.",
+            "required": true
+          },
+          {
+            "name": "conversation_duration",
+            "type": "double",
+            "description": "Total duration of the conversation [s].",
+            "required": true
+          },
+          {
+            "name": "goal_id",
+            "type": "int",
+            "description": "Goal ID where the conversation’s central point will take place.",
+            "required": true
+          },
+          {
+            "name": "time_step",
+            "type": "double",
+            "description": "Time step for movement updates [s].",
+            "required": true
+          },
+          {
+            "name": "non_main_agent_ids",
+            "type": "string",
+            "description": "Comma‑separated list of participating agent IDs. Must be passed as a string, e.g. \"1,2,3\" — not as {id} because {id} is an int.",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "GoTo",
+        "purpose": "Commands the agent to navigate directly to a specified point.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent.",
+            "required": true
+          },
+          {
+            "name": "time_step",
+            "type": "double",
+            "description": "Time step for movement updates [s].",
+            "required": true
+          },
+          {
+            "name": "goal_id",
+            "type": "int",
+            "description": "Chosen goal ID to go to.",
+            "required": true
+          },
+          {
+            "name": "tolerance",
+            "type": "double",
+            "description": "Distance to consider 'at goal' [m].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "ApproachAgent",
+        "purpose": "Directs the agent to move towards another agent for a defined duration.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the approaching agent.",
+            "required": true
+          },
+          {
+            "name": "target_agent_id",
+            "type": "int",
+            "description": "Identifier of the target agent.",
+            "required": true
+          },
+          {
+            "name": "time_step",
+            "type": "double",
+            "description": "Time step for movement updates [s].",
+            "required": true
+          },
+          {
+            "name": "duration",
+            "type": "double",
+            "description": "Duration of the approach action [s].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "ApproachRobot",
+        "purpose": "Commands the agent to approach the robot for a defined duration.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent.",
+            "required": true
+          },
+          {
+            "name": "time_step",
+            "type": "double",
+            "description": "Time step for movement updates [s].",
+            "required": true
+          },
+          {
+            "name": "closest_dist",
+            "type": "double",
+            "description": "Distance considered close enough to the robot [m].",
+            "required": true
+          },
+          {
+            "name": "max_vel",
+            "type": "double",
+            "description": "Maximum velocity during the approach [m/s].",
+            "required": true
+          },
+          {
+            "name": "duration",
+            "type": "double",
+            "description": "Duration of the approach behaviour [s].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "BlockRobot",
+        "purpose": "Instructs the agent to block the robot’s path for a specified duration.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent.",
+            "required": true
+          },
+          {
+            "name": "time_step",
+            "type": "double",
+            "description": "Time step for movement updates [s].",
+            "required": true
+          },
+          {
+            "name": "front_dist",
+            "type": "double",
+            "description": "Distance in front of the agent used for blocking [m].",
+            "required": true
+          },
+          {
+            "name": "duration",
+            "type": "double",
+            "description": "Duration for which the agent will block [s].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "BlockAgent",
+        "purpose": "Commands the agent to block another agent’s path for a defined duration.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the blocking agent.",
+            "required": true
+          },
+          {
+            "name": "target_agent_id",
+            "type": "int",
+            "description": "Identifier of the agent to be blocked.",
+            "required": true
+          },
+          {
+            "name": "time_step",
+            "type": "double",
+            "description": "Time step for movement updates [s].",
+            "required": true
+          },
+          {
+            "name": "front_dist",
+            "type": "double",
+            "description": "Blocking distance threshold [m].",
+            "required": true
+          },
+          {
+            "name": "duration",
+            "type": "double",
+            "description": "Duration of the blocking action [s].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "GroupWalk",
+        "purpose": "Directs a group to walk together with a designated main agent.",
+        "inputs": [
+          {
+            "name": "main_agent_id",
+            "type": "int",
+            "description": "Identifier of the main agent guiding the group.",
+            "required": true
+          },
+          {
+            "name": "time_step",
+            "type": "double",
+            "description": "Time increment used for updating movement [s].",
+            "required": true
+          },
+          {
+            "name": "non_main_agent_ids",
+            "type": "string",
+            "description": "Comma‑separated list of the non‑main agents’ identifiers. Must be passed as a string, e.g. \"1,2,3\" — not as {id} because {id} is an int.",
+            "required": true
+          },
+          {
+            "name": "duration",
+            "type": "double",
+            "description": "Duration for which the behaviour runs [s]. If omitted, the behaviour runs indefinitely.",
+            "required": false
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "LookAtPoint",
+        "purpose": "Makes the agent orient towards a specific point in space.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent.",
+            "required": true
+          },
+          {
+            "name": "goal_id",
+            "type": "int",
+            "description": "Goal ID of the point to look at.",
+            "required": true
+          },
+          {
+            "name": "yaw_tolerance",
+            "type": "double",
+            "description": "Angle tolerance to consider 'aligned' [rad].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "LookAtAgent",
+        "purpose": "Directs an observer agent to focus on another agent.",
+        "inputs": [
+          {
+            "name": "observer_id",
+            "type": "int",
+            "description": "Identifier of the observing agent.",
+            "required": true
+          },
+          {
+            "name": "target_id",
+            "type": "int",
+            "description": "Identifier of the target agent.",
+            "required": true
+          },
+          {
+            "name": "yaw_tolerance",
+            "type": "double",
+            "description": "Angle tolerance to consider 'aligned' [rad].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "LookAtRobot",
+        "purpose": "Commands the agent to direct its attention toward the robot.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the agent.",
+            "required": true
+          },
+          {
+            "name": "yaw_tolerance",
+            "type": "double",
+            "description": "Angle tolerance to consider 'aligned' [rad].",
+            "required": true
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "name": "FollowAgent",
+        "purpose": "Commands an agent to follow another target agent.",
+        "inputs": [
+          {
+            "name": "agent_id",
+            "type": "int",
+            "description": "Identifier of the follower agent.",
+            "required": true
+          },
+          {
+            "name": "time_step",
+            "type": "double",
+            "description": "Time step for movement updates [s].",
+            "required": true
+          },
+          {
+            "name": "target_agent_id",
+            "type": "int",
+            "description": "Identifier of the agent to be followed.",
+            "required": true
+          },
+          {
+            "name": "duration",
+            "type": "double",
+            "description": "Duration for which the behaviour is active [s]. If omitted, the behaviour runs indefinitely.",
+            "required": false
+          }
+        ],
+        "outputs": []
+      }
+    ],
+    "Stateful Condition Nodes": [],
+    "Decorator node": [
+      {
+        "name": "TimeDelayDecorator",
+        "purpose": "Delays the execution of its child node by a specified amount of time. Returns FAILURE until delay elapses, then ticks child.",
+        "inputs": [
+          {
+            "name": "delay",
+            "type": "double",
+            "description": "Delay time before the child node is ticked [s].",
+            "required": false,
+            "default": 1.0
+          }
+        ],
+        "outputs": []
+      }
+    ]
+  }
+}

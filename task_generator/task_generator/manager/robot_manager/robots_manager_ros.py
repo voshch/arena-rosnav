@@ -58,7 +58,7 @@ class RobotsManagerROS(NodeInterface, RobotsManager):
         v: typing.Any
     ) -> _RobotDiff:
 
-        robot_arg: list[str] = str(v).split(',')
+        robot_arg: list[str] = list(filter(len, str(v).split(',')))
 
         parsed_explicit: dict[str, Robot] = {}
         parsed_anonymous: dict[str, list[Robot]] = {}

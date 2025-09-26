@@ -1,10 +1,10 @@
-import math
 import os
 import time
 import traceback
 
 import attrs
 import geometry_msgs.msg
+import numpy as np
 from ament_index_python.packages import get_package_share_directory
 from arena_people_msgs.msg import Pedestrian, Pedestrians
 from arena_people_msgs.srv import DeleteActors
@@ -223,7 +223,6 @@ class HunavHumanSimulator(DummyHumanSimulator):
     _pedestrians: dict[int, dict]
     _agents_container: Agents
     _get_agents_container: Agents
-    _wall_points: list[geometry_msgs.msg.Point]
 
     # Service Names
     SERVICE_COMPUTE_AGENT = 'compute_agent'
@@ -246,7 +245,8 @@ class HunavHumanSimulator(DummyHumanSimulator):
         # Initialize collections
         self._logger.debug("Initializing collections...")
         self._pedestrians = {}
-        self._wall_points = []
+        self._wall_segments: list[WallSegment] = []
+        self._wall_points: list[Point] = []
         self._agents_container = Agents()  # Container to hold all registered agents
         self._get_agents_container = Agents()  # Container specifically just to send the Agent attributes to Hunavsystemplugin
         self._agents_container.header.frame_id = "map"
@@ -467,13 +467,15 @@ class HunavHumanSimulator(DummyHumanSimulator):
         for agent in current_agents.agents:
             if agent.name in self._latest_obstacles:
                 agent.closest_obs = self._latest_obstacles[agent.name]
+                agent.closest_obs.extend(self._wall_points)
                 self._logger.debug(f"Updated agent {agent.name} with {len(agent.closest_obs)} obstacles")
+                self._logger.debug(f"Wall Points: {self._wall_points}")
 
     def _get_agents_callback(self, request, response):
         """Handle get_agents service request - return UNMODIFIED agents"""
         try:
-            self._logger.info("=== GET AGENTS CALLBACK ===")
-            self._logger.info(f"Returning {len(self._get_agents_container.agents)} agents")
+            self._logger.debug("=== GET AGENTS CALLBACK ===")
+            self._logger.debug(f"Returning {len(self._get_agents_container.agents)} agents")
 
             # Update timestamp
             self._get_agents_container.header.stamp = self.node.get_clock().now().to_msg()
@@ -496,7 +498,7 @@ class HunavHumanSimulator(DummyHumanSimulator):
     def _get_walls_callback(self, request, response):
         """Service callback für Wall-Segments"""
         response.walls = self._wall_segments
-        self._logger.info(f"Sent {len(self._wall_segments)} wall segments")
+        self._logger.debug(f"Sent {len(self._wall_segments)} wall segments")
         return response
 
     def _move_entity_callback(self):
@@ -540,7 +542,7 @@ class HunavHumanSimulator(DummyHumanSimulator):
                     'animation_time': 0.0
                 }
 
-                self._logger.info(f"Added agent {agent_msg.name} to container. Total agents: {len(self._agents_container.agents)}")
+                self._logger.debug(f"Added agent {agent_msg.name} to container. Total agents: {len(self._agents_container.agents)}")
 
                 if self._simulator_type == Constants.SimSimulator.GAZEBO:
                     # spawn plugin if not already spawned
@@ -611,26 +613,36 @@ class HunavHumanSimulator(DummyHumanSimulator):
 
         return results
 
+    def _wall_to_points(self, start: Position, end: Position, spacing: float = 0.01) -> list[Point]:
+        points: list[Point] = []
+        v = (end - start).normalized()
+        for i in np.arange(0, (end - start).norm(), spacing):
+            points.append(start + v * i)
+        points.append(end)
+        return points
+
     def _spawn_walls_impl(self, walls) -> bool:
 
         self._wall_segments = []
+        self._wall_points = []
 
         for i, wall in enumerate(walls):
             segment = WallSegment()
             segment.id = i
-            segment.start = Point(x=wall.start.x, y=wall.start.y, z=0.0)
-            segment.end = Point(x=wall.end.x, y=wall.end.y, z=0.0)
+            segment.start = wall.start.to_msg()
+            segment.end = wall.end.to_msg()
             segment.length = (wall.start - wall.end).norm()
 
             self._wall_segments.append(segment)
+            self._wall_points.extend(self._wall_to_points(wall.start, wall.end))
 
-        self._logger.info(f"Cached {len(self._wall_segments)} wall segments")
-        self._logger.info(f"Wallsegments{self._wall_segments} ")
+        self._logger.debug(f"Cached {len(self._wall_segments)} wall segments")
+        self._logger.debug(f"Wallsegments{self._wall_segments} ")
         return True
 
     def _remove_obstacles_impl(self):
         """Remove all spawned pedestrians from simulation safely"""
-        self._logger.info(f"=== REMOVING {len(self._pedestrians)} PEDESTRIANS ===")
+        self._logger.debug(f"=== REMOVING {len(self._pedestrians)} PEDESTRIANS ===")
 
         # Phase 1: Delete Actors from ECM first
         success = self._call_delete_actors_service()
@@ -652,7 +664,7 @@ class HunavHumanSimulator(DummyHumanSimulator):
         # Phase 4: Clean up local data
         self._clear_local_data()
 
-        self._logger.info(f"Complete reset completed: {success}")
+        self._logger.debug(f"Complete reset completed: {success}")
         return success
 
     def _clear_hunav_agents(self):
@@ -664,11 +676,11 @@ class HunavHumanSimulator(DummyHumanSimulator):
 
             request = Trigger.Request()
 
-            self._logger.info("Calling HuNav ClearAgents service...")
+            self._logger.debug("Calling HuNav ClearAgents service...")
             response = self._clear_agents_client.call(request)
 
             if response and response.success:
-                self._logger.info("HuNav clear successful - ready for new agents")
+                self._logger.debug("HuNav clear successful - ready for new agents")
                 return True
             else:
                 self._logger.error("HuNav clear failed")
@@ -692,7 +704,7 @@ class HunavHumanSimulator(DummyHumanSimulator):
             response = self._delete_actors_client.call(request)
 
             if response and response.success:
-                self._logger.info(f"Successfully deleted {response.deleted_count} actors")
+                self._logger.debug(f"Successfully deleted {response.deleted_count} actors")
                 return True
             else:
                 self._logger.error("Delete actors service failed")
@@ -731,7 +743,7 @@ class HunavHumanSimulator(DummyHumanSimulator):
         self._logger.debug("All local data structures cleared")
 
     def _create_agent_msg(self, hunav_obstacle: HunavDynamicObstacle) -> Agent:
-        self._logger.info(f"Preparing agent {hunav_obstacle.name} (ID: {hunav_obstacle.id})")
+        self._logger.debug(f"Preparing agent {hunav_obstacle.name} (ID: {hunav_obstacle.id})")
 
         # Create agent message
         agent_msg = hunav_obstacle.to_msg()

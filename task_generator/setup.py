@@ -18,6 +18,7 @@ setup(
          ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
+        (os.path.join('share', package_name, 'prompt_utils'), glob('task_generator/tasks/obstacles/prompt_utils/HuNavSim_BT_Reference_Structured.json'))
     ],
     install_requires=['setuptools'],
     zip_safe=True,

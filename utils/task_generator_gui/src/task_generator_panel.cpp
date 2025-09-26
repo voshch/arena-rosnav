@@ -25,6 +25,9 @@ namespace task_generator_gui
 
         // Create a new node for the service clients
         service_node = std::make_shared<rclcpp::Node>("tm_service_node");
+        // Set the log level to WARN
+        node->get_logger().set_level(rclcpp::Logger::Level::Warn);
+        service_node->get_logger().set_level(rclcpp::Logger::Level::Warn);
     }
 
     void TaskGeneratorPanel::load(const rviz_common::Config &config)
@@ -46,7 +49,7 @@ namespace task_generator_gui
 
         get_parametrizeds_client = service_node->create_client<task_generator_msgs::srv::GetParametrizeds>(task_generator_node + "/get_parametrizeds");
 
-        get_randoms_client = service_node->create_client<task_generator_msgs::srv::GetRandoms>(task_generator_node + "/get_randoms");
+        get_obstacles_client = service_node->create_client<task_generator_msgs::srv::GetObstacles>(task_generator_node + "/get_obstacles");
 
         get_scenarios_client = service_node->create_client<task_generator_msgs::srv::GetScenarios>(task_generator_node + "/get_scenarios");
 
@@ -245,15 +248,13 @@ namespace task_generator_gui
             auto n_static_obstacles_widgetitem = new QTreeWidgetItem(obstacles_tree);
             n_static_obstacles_widgetitem->setText(0, "Number of Static Obstacles");
 
+            RCLCPP_WARN(service_node->get_logger(), "setting up n_static_obstacles_range");
+            RCLCPP_WARN(service_node->get_logger(), "size %d", int(n_static_obstacles_range.size()));
+            RCLCPP_WARN(service_node->get_logger(), "size %d", int(static_obstacles_all_models.size()));
+            RCLCPP_WARN(service_node->get_logger(), "n_static_obstacles_range: [%d, %d]", int(n_static_obstacles_range[0]), int(n_static_obstacles_range[1]));
+
             auto n_static_obstacles_widget = setupMinMaxSpinBox(&n_static_obstacles_range);
             obstacles_tree->setItemWidget(n_static_obstacles_widgetitem, 1, n_static_obstacles_widget);
-
-            // // Set up the spinbox for n_interactive_obstacles
-            // auto n_interactive_obstacles_widgetitem = new QTreeWidgetItem(obstacles_tree);
-            // n_interactive_obstacles_widgetitem->setText(0, "Number of Interactive Obstacles");
-
-            // auto n_interactive_obstacles_widget = setupMinMaxSpinBox(&n_interactive_obstacles_range);
-            // obstacles_tree->setItemWidget(n_interactive_obstacles_widgetitem, 1, n_interactive_obstacles_widget);
 
             // Set up the spinbox for n_dynamic_obstacles
             auto n_dynamic_obstacles_widgetitem = new QTreeWidgetItem(obstacles_tree);
@@ -268,13 +269,6 @@ namespace task_generator_gui
 
             static_obstacles_models_groupbox = setupGroupCheckBox(static_obstacles_all_models, &static_obstacles_models_selected);
             obstacles_tree->setItemWidget(static_obstacles_widgetitem, 1, static_obstacles_models_groupbox);
-
-            // // Set up check boxes to choose interactive obstacles models
-            // auto interactive_obstacles_widgetitem = new QTreeWidgetItem(obstacles_tree);
-            // interactive_obstacles_widgetitem->setText(0, "Interactive Obstacles Models");
-
-            // interactive_obstacles_models_groupbox = setupGroupCheckBox(interactive_obstacles_all_models, &interactive_obstacles_models_selected);
-            // obstacles_tree->setItemWidget(interactive_obstacles_widgetitem, 1, interactive_obstacles_models_groupbox);
 
             // Set up check boxes to choose dynamic obstacles models
             auto dynamic_obstacles_widgetitem = new QTreeWidgetItem(obstacles_tree);
@@ -298,6 +292,25 @@ namespace task_generator_gui
 
         else if (obstacles_task_mode == "Prompt")
         {
+            auto use_behavior_tree_checkbox = new QCheckBox();
+            use_behavior_tree_checkbox->setChecked(use_behavior_tree);
+            auto use_behavior_tree_widgetitem = new QTreeWidgetItem(obstacles_tree);
+            use_behavior_tree_widgetitem->setText(0, "Use Behavior Tree");
+            obstacles_tree->setItemWidget(use_behavior_tree_widgetitem, 1, use_behavior_tree_checkbox);
+            connect(use_behavior_tree_checkbox, &QCheckBox::stateChanged, this, [this](const bool &value)
+                    { use_behavior_tree = value; });
+
+            auto top_p_spin_box = new QDoubleSpinBox();
+            top_p_spin_box->setMinimum(0.0);
+            top_p_spin_box->setMaximum(1.0);
+            top_p_spin_box->setSingleStep(0.1);
+            top_p_spin_box->setValue(top_p);
+            auto top_p_widgetitem = new QTreeWidgetItem(obstacles_tree);
+            top_p_widgetitem->setText(0, "Nucleus sampling threshold (top_p)");
+            obstacles_tree->setItemWidget(top_p_widgetitem, 1, top_p_spin_box);
+            connect(top_p_spin_box, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [this](const double &value)
+                    { top_p = value; });
+
             auto prompt_text_edit = new QTextEdit();
             prompt_text_edit->setPlaceholderText("Type your prompt here");
             prompt_text_edit->setMinimumHeight(50);
@@ -307,12 +320,13 @@ namespace task_generator_gui
             prompt_text_edit->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
             prompt_text_edit->setLineWrapColumnOrWidth(1);
             prompt_text_edit->setLineWrapMode(QTextEdit::LineWrapMode::WidgetWidth);
-            RCLCPP_INFO(node->get_logger(), "Line wrap mode: %d", prompt_text_edit->lineWrapMode());
-            auto item = new QTreeWidgetItem(obstacles_tree);
-            item->setText(0, "Prompt");
-            obstacles_tree->setItemWidget(item, 1, prompt_text_edit);
+            prompt_text_edit->setText(QString::fromStdString(typed_prompt));
             connect(prompt_text_edit, &QTextEdit::textChanged, this, [this, prompt_text_edit]()
                     { typed_prompt = prompt_text_edit->toPlainText().toStdString(); });
+
+            auto prompt_widgetitem = new QTreeWidgetItem(obstacles_tree);
+            prompt_widgetitem->setText(0, "Prompt");
+            obstacles_tree->setItemWidget(prompt_widgetitem, 1, prompt_text_edit);
         }
     }
 
@@ -391,15 +405,15 @@ namespace task_generator_gui
 
     void TaskGeneratorPanel::onObstaclesTaskModeChanged(const QString &text)
     {
-        getCurrentTaskGeneratorNodeParams();
         obstacles_task_mode = text;
+        getCurrentTaskGeneratorNodeParams();
         setupObstaclesTreeItem();
     }
 
     void TaskGeneratorPanel::onRobotsTaskModeChanged(const QString &text)
     {
-        getCurrentTaskGeneratorNodeParams();
         robots_task_mode = text;
+        getCurrentTaskGeneratorNodeParams();
         setupRobotsTreeItem();
     }
 

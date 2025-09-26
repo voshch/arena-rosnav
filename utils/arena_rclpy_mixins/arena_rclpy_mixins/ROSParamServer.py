@@ -101,6 +101,7 @@ class _ROSParam(ROSParamT[T], typing.Generic[T]):
 
     @param.setter
     def param(self, value: typing.Any):
+        self._parameter_value = value
         self._value = self._from_param(value)
 
     def callback(self, value: typing.Any) -> bool:

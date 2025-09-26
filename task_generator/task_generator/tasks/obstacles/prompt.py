@@ -1,23 +1,58 @@
-from task_generator.tasks.obstacles import Obstacle, DynamicObstacle, CustomDynamicObstacle, Obstacles, CustomObstacles, TM_Obstacles
-import attrs
-from arena_rclpy_mixins.ROSParamServer import ROSParamT
-import os
-from arena_simulation_setup.worlds.world import World
-import json
 import itertools
+import json
+import os
+import math
+import tempfile
 import time
-import yaml
-from openai import OpenAI
-from task_generator.simulators.human.hunav.hunav import HunavDynamicObstacle
-from ament_index_python.packages import get_package_share_directory
+import xml.etree.ElementTree as ET
+from typing import Dict
 
-LOCAL_LM = "Qwen/Qwen3-0.6B"
-REMOTE_LM = "gemini-2.5-flash"
+import attrs
+import chromadb
+import yaml
+from ament_index_python.packages import get_package_share_directory
+from arena_rclpy_mixins.ROSParamServer import ROSParamT
+from arena_simulation_setup.utils.cattrs import converter
+from arena_simulation_setup.worlds.world import WorldDescription
+from google import genai
+
+from task_generator.simulators.human.hunav.hunav import HunavDynamicObstacle
+from task_generator.tasks.obstacles import (
+    CustomDynamicObstacle,
+    CustomObstacles,
+    DynamicObstacle,
+    Obstacle,
+    Obstacles,
+    TM_Obstacles,
+)
+from task_generator.tasks.obstacles.prompt_utils import (
+    ARENA_CONTEXT,
+    BEHAVIOR_TREE_CONTEXT,
+    BT_REF_DOC_PATH,
+    CHROMA_DB_PATH,
+    LOCAL_LM,
+    REMOTE_LM,
+    Root,
+    create_chroma_db,
+    get_chroma_collection,
+    get_relevant_bt_nodes,
+    process_json_doc,
+)
+
+DEBUG: bool = bool(os.environ.get("ARENA_DEBUG", True))  # TODO change to false
+
 
 @attrs.define()
 class _ParsedConfig:
     static: list[Obstacle]
     dynamic: list[DynamicObstacle]
+
+
+@attrs.define()
+class PromptConfig:
+    user_prompt: ROSParamT[str]
+    top_p: ROSParamT[float]
+    behavior_tree: ROSParamT[bool]
 
 
 class TM_Prompt(TM_Obstacles):
@@ -34,15 +69,14 @@ class TM_Prompt(TM_Obstacles):
         reset(**kwargs): Resets the obstacle generation with the specified parameters.
     """
 
-    _config: ROSParamT[_ParsedConfig]
+    _config: PromptConfig
 
-
-    def preprocess_world_description(self, world_description: dict) -> str:
+    def preprocess_world_description(self, world_description: WorldDescription) -> str:
         """
         Preprocesses the world description, keeps corners and walls only and converts them to 2D format.
 
         Args:
-            world_description : dict
+            world_description : WorldDescription
                 The world description to preprocess.
 
         Returns:
@@ -52,35 +86,141 @@ class TM_Prompt(TM_Obstacles):
         parsed = {}
 
         parsed["zones"] = []
-        for zone in world_description.get("zones", []):
+        for zone in world_description.zones:
             parsed_zone = {
-                "name": zone.get("name", ""),
-                "corners": [[corner['x'], corner['y']] for corner in zone.get("corners", [])],
-                "walls": [[[wall['start']['x'], wall['start']['y']], [wall['end']['x'], wall['end']['y']]] for wall in zone.get("walls", [])],
+                "name": zone.name,
+                "corners": [[corner.x, corner.y] for corner in zone.corners],
+                "walls": [[[wall.start.x, wall.start.y], [wall.end.x, wall.end.y]] for wall in zone.walls],
+                "entities": [
+                    {
+                        "name": entity.name,
+                        "model": entity.model.serialize(),
+                        "pose": [
+                            entity.pose.position.x,
+                            entity.pose.position.y,
+                            math.degrees(entity.pose.orientation.to_yaw()),  # I use degree for yaw for now (look at `context.py``)
+                        ]
+                    } for entity in zone.entities.static
+                ]
             }
             parsed["zones"].append(parsed_zone)
 
         return json.dumps(parsed, indent=2)
 
-
-    def _prompt_to_config(self, prompt: str, local: bool=False) -> dict:
-        world = World(self.node._world_manager.world_name)
-        with open(world.world_path) as file:
-            world_description = yaml.safe_load(file)
-
-        world_info = self.preprocess_world_description(world_description)
-
-        messages = [
-            {
-                "role": "system",
-                "content": f"{self.context}. Generate data base on this world data as below: {world_info}"
-            },
-            {
-                "role": "user", 
-                "content": f"Generate pedestrian waypoints for a simulation where: {prompt}. Only return valid JSON under the 'dynamic' field, using the format above,  with no explanation, thoughts, or extra text."
+    def llm_bt_output_to_config(self, llm_output: Dict) -> Dict:
+        try:
+            config = {
+                "obstacles": {
+                    "static": [],
+                    "dynamic": []
+                }
             }
-        ]
-        if local: # Currently not supported
+
+            for id, hunav in enumerate(llm_output.get("hunav_agents")):
+                hunav: Dict
+
+                hunav_config = {
+                    "id": id,
+                    "name": hunav.get("name"),
+                    "pos": hunav.get("pos"),
+                    "model": hunav.get("model"),
+                    "waypoints": hunav.get("waypoints")
+                }
+
+                bt_root: Dict = hunav.get("bt_root")
+                behavior_tree_xml = Root.model_validate_json(json.dumps(bt_root)).to_xml()
+
+                tmp_xml_file = tempfile.NamedTemporaryFile(
+                    mode='w+t',
+                    suffix='.xml',
+                    dir=self.tmp_dir.name,
+                    delete=False
+                )
+
+                tmp_xml_file.write(
+                    ET.tostring(
+                        behavior_tree_xml,
+                        encoding="UTF-8",
+                        method='xml',
+                        xml_declaration=True
+                    ).decode("utf-8")
+                )
+
+                hunav_config.update({
+                    "behavior_tree": tmp_xml_file.name
+                })
+
+                config["obstacles"]["dynamic"].append(hunav_config)
+
+        except Exception as e:
+            self.node.get_logger().error(f"Failed to parse Behavior tree from LLM response: {e}")
+            self.node.get_logger().error("Returning empty config!")
+            config = {}
+
+        return config
+
+    def setup_chroma(self):
+        if os.path.isdir(CHROMA_DB_PATH):
+            self.chroma_collection = get_chroma_collection(CHROMA_DB_PATH, self.inference_client)
+        else:
+            processed_doc = process_json_doc(
+                BT_REF_DOC_PATH
+            )
+            self.node.get_logger().info("Creating Chroma DB from Behavior Tree Nodes Reference...")
+            self.chroma_collection = create_chroma_db(
+                documents=processed_doc,
+                db_path=CHROMA_DB_PATH,
+                client=self.inference_client
+            )
+
+    def _prompt_to_config(self, prompt: str, top_p: float, use_behavior_tree: bool, local: bool = False) -> dict:
+        world_info = self.preprocess_world_description(self._PROPS.world_manager.world)
+
+        messages = []
+
+        if use_behavior_tree:
+            self.setup_chroma()
+
+            if "bt" not in self.cached_context.keys():  # system context is not cached (due to initialization)
+                cache = self.inference_client.caches.create(
+                    model=REMOTE_LM,
+                    config=genai.types.CreateCachedContentConfig(
+                        display_name="bt-context",
+                        system_instruction="You always stick to the facts in the sources provided, and never make up new facts. Now look at these provided materials, and answer the following questions.",
+                        contents=BEHAVIOR_TREE_CONTEXT
+                    )
+                )
+                self.cached_context.update({"bt": cache.name})
+
+            bt_nodes = get_relevant_bt_nodes(
+                query=f"What are the nodes should be used for creating the behavior tree as described below: \"{prompt}\". \
+                    Note that if there's any node related to navigation, you must retrieve the node SetGoal.",
+                collection=self.chroma_collection,
+            )
+
+            self.node.get_logger().warn(f"Choosen bt_nodes: {bt_nodes}")
+
+            messages.append(
+                f"Generate hunav agents data for a simulation base on this world data as below: {world_info}, where: {prompt}. Use these behavior tree nodes only: {bt_nodes}. Only return valid JSON using the format declared in the system context, with no explanation, thoughts, or extra text."
+            )
+
+        else:
+            if "arena" not in self.cached_context.keys():  # system context is not cached (due to initialization)
+                cache = self.inference_client.caches.create(
+                    model=REMOTE_LM,
+                    config=genai.types.CreateCachedContentConfig(
+                        display_name="arena-context",
+                        system_instruction="You always stick to the facts in the sources provided, and never make up new facts. Now look at these provided materials, and answer the following questions.",
+                        contents=ARENA_CONTEXT
+                    )
+                )
+                self.cached_context.update({"arena": cache.name})
+
+            messages.append(
+                f"Generate dynamic obstacles data for a simulation where: {prompt}. Generate data base on this world data as below: {world_info}. Only return valid JSON under the 'dynamic' field, using the format declared in the system context, with no explanation, thoughts, or extra text."
+            )
+
+        if local:  # Currently not supported
             return {}
             from huggingface_hub import InferenceClient
             from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -101,7 +241,7 @@ class TM_Prompt(TM_Obstacles):
 
             # Tokenize input
             inputs = tokenizer([prompt_text], return_tensors="pt").to(model.device)
-            
+
             # Generate output
             outputs = model.generate(
                 **inputs,
@@ -115,25 +255,24 @@ class TM_Prompt(TM_Obstacles):
             self.node.get_logger().info(f"Inference done, took: {end-start:.1f}s")
 
         else:
-            if "GEMINI_API_KEY" not in os.environ:
-                self.node.get_logger().error("GEMINI_API_KEY environment variable not set!")
-                self.node.get_logger().error("Returning empty config!")
-                return {}
-            
-            self.inference_client = OpenAI(
-                api_key=os.environ["GEMINI_API_KEY"],
-                base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-            )
             self.node.get_logger().warn("Start inference...")
             start = time.time()
-            response = self.inference_client.chat.completions.create(
+            response = self.inference_client.models.generate_content(
                 model=REMOTE_LM,
-                messages=messages,
-                top_p=0.9,
-                stream=False,
+                contents=messages,
+                config=genai.types.GenerateContentConfig(
+                    cached_content=self.cached_context["bt"] if use_behavior_tree else self.cached_context["arena"],
+                    top_p=top_p,
+                    thinking_config=genai.types.ThinkingConfig(
+                        include_thoughts=False,
+                        thinking_budget=8192
+                    ),
+                )
             )
 
-            answer = response.choices[0].message.content
+            answer = response.text
+            self.node.get_logger().warn(f"LLM raw output for the prompt: {prompt}")
+            self.node.get_logger().warn(answer)
             end = time.time()
             self.node.get_logger().warn(f"Inference done, took: {end-start:.1f}s")
 
@@ -144,18 +283,26 @@ class TM_Prompt(TM_Obstacles):
 
         # Parse it into a Python dict
         try:
-            config = json.loads(answer)
+            if use_behavior_tree:
+                # with open("/home/nguyen/test_llm_output.json", "w") as file:
+                #     json.dump(json.loads(answer), file)
+                config = self.llm_bt_output_to_config(json.loads(answer))
+            else:
+                config = json.loads(answer)
+
         except json.JSONDecodeError as e:
-            self.node.get_logger().error("Failed to parse JSON from LLM response:", e)
+            self.node.get_logger().error(f"Failed to parse JSON from LLM response: {e}")
             self.node.get_logger().error("Returning empty config!")
             config = {}
 
-        # with open("/home/nguyen/test_llm_output.json", "w") as file:
-        #     json.dump(config, file)
+        if DEBUG:
+            with tempfile.NamedTemporaryFile(delete=False, prefix='scenario', suffix=".json", dir=os.environ["HOME"], mode='w') as file:
+                json.dump(config, file)
+            self.node.get_logger().warning(f"Saved LLM output to {file.name}")
 
         return config
 
-    def _parse_prompt(self, prompt: str) -> _ParsedConfig:
+    def _parse_prompt(self, prompt: str, top_p: float, use_behavior_tree: bool) -> _ParsedConfig:
         """
         Parses the prompt to generate obstacles config.
 
@@ -165,30 +312,49 @@ class TM_Prompt(TM_Obstacles):
         Returns:
             _ParsedConfig: Parsed configuration containing static and dynamic obstacles.
         """
-        config = self._prompt_to_config(prompt)
+        config = self._prompt_to_config(prompt, top_p, use_behavior_tree)
 
         static_obstacles: list[Obstacle]
         dynamic_obstacles: list[DynamicObstacle]
 
         static_obstacles = [
-            Obstacle.parse(obs)
-            for obs
-            in itertools.chain(
-                config.get("obstacles", {}).get("static", []),
-                config.get("obstacles", {}).get("interactive", []),
-            )
+            # Obstacle.parse(obs)
+            # for obs
+            # in itertools.chain(
+            #     config.get("obstacles", {}).get("static", []),
+            #     config.get("obstacles", {}).get("interactive", []),
+            # )
+            # This causes bug so temporarily disabled
         ]
 
         dynamic_obstacles = [
-            CustomDynamicObstacle.parse(obs)
+            obs
             for obs
             in config.get("obstacles", {}).get("dynamic", [])
         ]
 
-        return _ParsedConfig(static=static_obstacles, dynamic=dynamic_obstacles)
+        result = converter.structure(dict(static=static_obstacles, dynamic=dynamic_obstacles), _ParsedConfig)
+
+        if DEBUG:
+            target_dir = os.path.join(os.environ["HOME"], 'scenarios', f"{int(time.time())}_{prompt[:30]}")
+            os.makedirs(target_dir, exist_ok=True)
+            with open(os.path.join(target_dir, 'scenario.json'), 'w') as file:
+                json.dump({'obstacles': converter.unstructure(result)}, file, indent=2)
+            self.node.get_logger().warning(f"Saved parsed prompt result to {target_dir}")
+
+        # import attrs
+        # self._logger.warning("Final result:")
+        # self._logger.warning(pprint.pformat(attrs.asdict(result)))
+        return result
 
     def reset(self, **kwargs) -> CustomObstacles:
-        return self._config.value.static, self._config.value.dynamic
+        parsed_config = self._parse_prompt(
+            self._config.user_prompt.value,
+            self._config.top_p.value,
+            self._config.behavior_tree.value,
+        )
+
+        return parsed_config.static, parsed_config.dynamic
 
     def __init__(self, **kwargs):
         TM_Obstacles.__init__(self, **kwargs)
@@ -214,66 +380,35 @@ class TM_Prompt(TM_Obstacles):
 
                 agent_config = config['hunav_loader']['ros__parameters']['agent1']
                 return agent_config
-            
+
             except Exception as e:
                 raise RuntimeError(f"Error loading config from {config_path}") from e
-            
-        default_hunav_config = _load_config() # Is not used yet
 
-        self.context = """
-            You are a simulator agent that outputs only JSON-formatted data for pedestrian simulation with provided specific information about the simulation map.
+        # default_hunav_config = _load_config() # Is not used yet
 
-            Output must strictly follow this structure:
-            ```json
-            "obstacles": {
-                "static": [],
-                "dynamic": [
-                    {
-                        "name": "1",
-                        "pos": [24.0, 2.0, 0],
-                        "type": "adult",
-                        "model": "gazebo_actor",
-                        "waypoints": [[27.1, 7.0, 0], [17.7, 7.0, 0]],
-                        "waypoint_mode": 1
-                    }
-                ]
-            }
-            ```
-            Do NOT explain anything. Output JSON only. Use realistic (x, y, 0) coordinates.
-
-            The `static` field contains static obstacles, while the `dynamic` field contains dynamic obstacles with their waypoints.
-
-            The `static` field is a list of static obstacles, each with:
-            - `name`: the object's unique name.
-            - `model`: the type of object (e.g., `shelf`).
-            - `pose`: a list [x, y, yaw] representing the object's position and rotation.
-
-            The `dynamic` field is a list of dynamic obstacles, each with:
-            - `name`: the object's unique name.
-            - `pos`: a list [x, y, yaw] representing the object's position and rotation.
-            - `type`: the type of dynamic obstacle (e.g., `adult`, `child`, etc.).
-            - `model`: the type of model used for the dynamic obstacle (e.g., `gazebo_actor`).
-            - `waypoints`: a list of waypoints for the dynamic obstacle in the format [[x1, y1, 0], [x2, y2, 0], ...].
-            - `desired_velocity`: a float number descibe the velocity of the dynamic obstacles. This value ranges from [0, 3.5], where [0, 0.3] is stationary, (0.3, 1.0] is idling, (1.0, 2.0] is normal walking and (2.0, 3.5] is running.
-
-            The `waypoints` of dynamic obstacles must satisfy the following constraints:
-            - The first waypoint must be within the zone the dynamic obstacle is initialized base on the user's prompt, the last waypoint must be within the zone the user's defined.
-            - The waypoints must be valid positions on the map, avoiding walls and obstacles.
-
-            The world information is provided in this JSON-formated data as described below: The map is composed of a list of zones. Each zone has the following fields:
-            - `name`: a unique identifier.
-            - `corners`: a list of 2D points [x, y] marking the zone's corners, you can calculate the zone's position and coverage, and check if a point is within a zone or not base on these points.
-            - `walls`: a list of wall segments, each defined by two 2D points [[x1, y1], [x2, y2]].
-            - `mat`: the material of the floor (can be empty).
-            - `entities`: contains static objects in the zone. Each static object has:
-            -   - `name`: the object's unique name.
-            -   - `model`: the type of object (e.g., `shelf`).
-            -   - `pose`: a list [x, y, z] representing the object's position.
-            - `description`: a human-readable name of the zone.
-        """
-
-        self._config = self.node.ROSParam[_ParsedConfig](
-            self.namespace('user_prompt'),
-            value='empty space',
-            parse=self._parse_prompt
+        self._config = PromptConfig(
+            user_prompt=self.node.ROSParam[str](
+                self.namespace('user_prompt'),
+                value='An empty space with no pedestrian.',
+            ),
+            top_p=self.node.ROSParam[float](
+                self.namespace('top_p'),
+                value=0.3,
+            ),
+            behavior_tree=self.node.ROSParam[bool](
+                self.namespace('behavior_tree'),
+                value=False,
+            )
         )
+
+        if "GEMINI_API_KEY" not in os.environ:
+            self.node.get_logger().error("GEMINI_API_KEY environment variable not set!")
+            raise OSError("GEMINI_API_KEY environment variable not set!")
+
+        self.inference_client = genai.Client(
+            api_key=os.environ["GEMINI_API_KEY"]
+        )
+
+        self.cached_context: Dict[str, str] = {}  # Whether the prompt context need to be changed and fed into LLM model
+
+        self.tmp_dir = tempfile.TemporaryDirectory()  # Temporary directory to store behavior tree XML files

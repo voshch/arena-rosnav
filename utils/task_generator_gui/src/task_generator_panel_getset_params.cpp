@@ -7,64 +7,29 @@
 #include <chrono>
 #include <cstdlib>
 #include <memory>
+
+#include <cctype>
+
 namespace task_generator_gui
 {
     void TaskGeneratorPanel::getRobots()
     {
         auto request = std::make_shared<task_generator_msgs::srv::GetRobots::Request>();
 
-        while (!get_robots_client->wait_for_service(std::chrono::seconds(1)))
-        {
-            if (!rclcpp::ok())
-            {
-                RCLCPP_ERROR(service_node->get_logger(), "Interrupted while watiting for the /task_generator_node/get_robots service!. Exiting.");
-                return;
-            }
-            RCLCPP_INFO(service_node->get_logger(), "Service is not available, waiting again...");
-        }
+        auto response = sendRequest<task_generator_msgs::srv::GetRobots>(get_robots_client, request, "get_robots");
 
-        auto future = get_robots_client->async_send_request(request);
-        if (rclcpp::spin_until_future_complete(service_node, future) == rclcpp::FutureReturnCode::SUCCESS)
-        {
-            RCLCPP_INFO(service_node->get_logger(), "Got response from get_robots_client!");
-        }
-        else
-        {
-            RCLCPP_ERROR(service_node->get_logger(), "Failed to call service!");
-        }
-
-        auto response = future.get();
         robot_models = response->robots;
-        selected_robot_model = robot_models[0];
+        selected_robot_model = robot_models.empty() ? "" : robot_models[0];
     }
 
     void TaskGeneratorPanel::getWorlds()
     {
         auto request = std::make_shared<task_generator_msgs::srv::GetWorlds::Request>();
 
-        while (!get_worlds_client->wait_for_service(std::chrono::seconds(1)))
-        {
-            if (!rclcpp::ok())
-            {
-                RCLCPP_ERROR(service_node->get_logger(), "Interrupted while watiting for the /task_generator_node/get_worlds service!. Exiting.");
-                return;
-            }
-            RCLCPP_INFO(service_node->get_logger(), "Service is not available, waiting again...");
-        }
+        auto response = sendRequest<task_generator_msgs::srv::GetWorlds>(get_worlds_client, request, "get_worlds");
 
-        auto future = get_worlds_client->async_send_request(request);
-        if (rclcpp::spin_until_future_complete(service_node, future) == rclcpp::FutureReturnCode::SUCCESS)
-        {
-            RCLCPP_INFO(service_node->get_logger(), "Got response from get_worlds_client!");
-        }
-        else
-        {
-            RCLCPP_ERROR(service_node->get_logger(), "Failed to call service!");
-        }
-
-        auto response = future.get();
         worlds = response->worlds;
-        selected_world = worlds[0];
+        selected_world = worlds.empty() ? "" : worlds[0];
     }
 
     void TaskGeneratorPanel::getCurrentTaskGeneratorNodeParams(bool init)
@@ -89,126 +54,102 @@ namespace task_generator_gui
         try
         {
             RCLCPP_INFO(service_node->get_logger(), "Getting parameters from /task_generator_node");
-            if (parameters_client->has_parameter("tm_obstacles"))
-            {
-                auto current_obstacles_tm = parameters_client->get_parameter<std::string>("tm_obstacles");
-
-                // rclcpp::SyncParametersClient::SharedPtr does not support nested parameters for has_parameter function
-                if (hasNestedParameter("task.environment.file"))
-                {
-                    if (init)
-                        obstacles_task_mode = QString("Environment");
-
-                    auto config_file = parameters_client->get_parameter<std::string>("task.environment.file");
-                    selected_environment_config_file = config_file;
+            if(init){
+                auto tm_obstacles_param = parameters_client->get_parameter<std::string>("tm_obstacles");
+                if(!tm_obstacles_param.empty()){
+                    tm_obstacles_param[0] = std::toupper(static_cast<unsigned char>(tm_obstacles_param[0]));
                 }
-                if (hasNestedParameter("task.parametrized.file"))
-                {
-                    if (init)
-                        obstacles_task_mode = QString("Parametrized");
+                obstacles_task_mode = QString::fromStdString(tm_obstacles_param);
 
-                    auto config_file = parameters_client->get_parameter<std::string>("task.parametrized.file");
-                    selected_parametrized_config_file = config_file;
+                auto tm_robots_param = parameters_client->get_parameter<std::string>("tm_robots");
+                if(!tm_robots_param.empty()){
+                    tm_robots_param[0] = std::toupper(static_cast<unsigned char>(tm_robots_param[0]));
                 }
-                if (hasNestedParameter("task.random.static.models"))
-                {
-                    if (init)
-                        obstacles_task_mode = QString("Random");
-
-                    auto current_static_models = parameters_client->get_parameter<std::vector<std::string>>("task.random.static.models");
-                    // auto current_interactive_models = parameters_client->get_parameter<std::vector<std::string>>("task.random.interactive.models");
-                    auto current_dynamic_models = parameters_client->get_parameter<std::vector<std::string>>("task.random.dynamic.models");
-
-                    for (int i = 0; i < int(static_obstacles_all_models.size()); i++)
-                    {
-                        for (auto &model : current_static_models)
-                        {
-                            if (static_obstacles_all_models[i] == model)
-                            {
-                                static_obstacles_models_selected[i] = 1;
-                                RCLCPP_INFO(service_node->get_logger(), "Static obstacles model selected: %s", static_obstacles_all_models[i].c_str());
-                            }
-                        }
-                    }
-
-                    // for (int i = 0; i < int(interactive_obstacles_all_models.size()); i++)
-                    // {
-                    //     for (auto &model : current_interactive_models)
-                    //     {
-                    //         if (interactive_obstacles_all_models[i] == model)
-                    //         {
-                    //             interactive_obstacles_models_selected[i] = 1;
-                    //         }
-                    //     }
-                    // }
-
-                    for (int i = 0; i < int(dynamic_obstacles_all_models.size()); i++)
-                    {
-                        for (auto &model : current_dynamic_models)
-                        {
-                            if (dynamic_obstacles_all_models[i] == model)
-                            {
-                                dynamic_obstacles_models_selected[i] = 1;
-                                RCLCPP_INFO(service_node->get_logger(), "Dynamic obstacles model selected: %s", dynamic_obstacles_all_models[i].c_str());
-                            }
-                        }
-                    }
-
-                    RCLCPP_INFO(service_node->get_logger(), "Static obstacles models selected: ");
-
-                    n_static_obstacles_range = parameters_client->get_parameter<std::vector<int64_t>>("task.random.static.n");
-
-                    // n_interactive_obstacles_range = parameters_client->get_parameter<std::vector<int64_t>>("task.random.interactive.n");
-
-                    n_dynamic_obstacles_range = parameters_client->get_parameter<std::vector<int64_t>>("task.random.dynamic.n");
-                }
-                if (hasNestedParameter("task.scenario.file"))
-                {
-                    if (init)
-                        obstacles_task_mode = QString("Scenario");
-
-                    auto config_file = parameters_client->get_parameter<std::string>("task.scenario.file");
-
-                    selected_scenario_config_file = config_file;
-                }
-                if (hasNestedParameter("task.prompt.user_prompt"))
-                {
-                    if (init)
-                        obstacles_task_mode = QString("Prompt");
-
-                    auto prompt = parameters_client->get_parameter<std::string>("task.prompt.user_prompt");
-
-                    typed_prompt = prompt;
-                }
+                robots_task_mode = QString::fromStdString(tm_robots_param);
+            }
+            auto current_obstacles_tm = obstacles_task_mode.toStdString();
+            for (char &c : current_obstacles_tm) {
+                c = std::tolower(static_cast<unsigned char>(c));
             }
 
-            if (parameters_client->has_parameter("tm_robots"))
-            {
-                auto current_robots_tm = parameters_client->get_parameter<std::string>("tm_robots");
-
-                if (current_robots_tm == "explore")
-                {
-                    if (init)
-                        robots_task_mode = QString("Explore");
-                }
-                if (current_robots_tm == "guided")
-                {
-                    if (init)
-                        robots_task_mode = QString("Guided");
-                }
-                if (current_robots_tm == "random")
-                {
-                    if (init)
-                        robots_task_mode = QString("Random");
-                }
-                if (current_robots_tm == "scenario")
-                {
-                    if (init)
-                        robots_task_mode = QString("Scenario");
-                }
-
-                RCLCPP_INFO(service_node->get_logger(), "Current Robot Task Mode: %s", current_robots_tm.c_str());
+            auto current_robots_tm = robots_task_mode.toStdString();
+            for (char &c : current_robots_tm) {
+                c = std::tolower(static_cast<unsigned char>(c));
             }
+
+            RCLCPP_WARN(service_node->get_logger(), "Current Obstacles Task Mode: %s", current_obstacles_tm.c_str());
+            RCLCPP_WARN(service_node->get_logger(), "Current Robots Task Mode: %s", current_robots_tm.c_str());
+
+            // rclcpp::SyncParametersClient::SharedPtr does not support nested parameters for has_parameter function
+            if (current_obstacles_tm == "environment")
+            {
+                auto config_file = parameters_client->get_parameter<std::string>("task.environment.file", environment_config_files.empty() ? "" : environment_config_files[0]);
+                selected_environment_config_file = config_file;
+            }
+            if (current_obstacles_tm == "parametrized")
+            {
+                auto config_file = parameters_client->get_parameter<std::string>("task.parametrized.file", parametrized_config_files.empty() ? "" : parametrized_config_files[0]);
+                selected_parametrized_config_file = config_file;
+            }
+            if (current_obstacles_tm == "random")
+            {
+                auto current_static_models = parameters_client->get_parameter<std::vector<std::string>>("task.random.static.models", {});
+                auto current_dynamic_models = parameters_client->get_parameter<std::vector<std::string>>("task.random.dynamic.models", {});
+
+                for (size_t i = 0; i < static_obstacles_all_models.size(); i++)
+                {
+                    for (auto &model : current_static_models)
+                    {
+                        if (static_obstacles_all_models[i] == model)
+                        {
+                            static_obstacles_models_selected[i] = 1;
+                            RCLCPP_INFO(service_node->get_logger(), "Static obstacles model selected: %s", static_obstacles_all_models[i].c_str());
+                        }
+                    }
+                }
+
+                for (size_t i = 0; i < dynamic_obstacles_all_models.size(); i++)
+                {
+                    for (auto &model : current_dynamic_models)
+                    {
+                        if (dynamic_obstacles_all_models[i] == model)
+                        {
+                            dynamic_obstacles_models_selected[i] = 1;
+                            RCLCPP_INFO(service_node->get_logger(), "Dynamic obstacles model selected: %s", dynamic_obstacles_all_models[i].c_str());
+                        }
+                    }
+                }
+
+                RCLCPP_INFO(service_node->get_logger(), "Static obstacles models selected: ");
+
+                n_static_obstacles_range = parameters_client->get_parameter<std::vector<int64_t>>("task.random.static.n", {0, 0});
+                n_dynamic_obstacles_range = parameters_client->get_parameter<std::vector<int64_t>>("task.random.dynamic.n", {0, 0});
+                RCLCPP_WARN(service_node->get_logger(), "got ranges");
+                RCLCPP_WARN(service_node->get_logger(), "n_static_obstacles_range: [%d, %d]", int(n_static_obstacles_range[0]), int(n_static_obstacles_range[1]));
+            }
+            if (current_obstacles_tm == "scenario")
+            {
+                auto config_file = parameters_client->get_parameter<std::string>("task.scenario.file", scenario_config_files.empty() ? "" : scenario_config_files[0]);
+
+                selected_scenario_config_file = config_file;
+            }
+            if (current_obstacles_tm == "prompt")
+            {
+                auto prompt = parameters_client->get_parameter<std::string>("task.prompt.user_prompt", "One pedestrian walking along the walls.");
+
+                typed_prompt = prompt;
+
+                auto use_bt = parameters_client->get_parameter<bool>("task.prompt.behavior_tree", false);
+
+                use_behavior_tree = use_bt;
+
+                auto p = parameters_client->get_parameter<double>("task.prompt.top_p", 0.3);
+
+                top_p = p;
+            }
+
+
+            RCLCPP_INFO(service_node->get_logger(), "Current Robot Task Mode: %s", current_robots_tm.c_str());
 
             if (parameters_client->has_parameter("robot"))
             {
@@ -235,27 +176,7 @@ namespace task_generator_gui
             // Get configs for Environment Obstacles Task Mode
             auto environment_request = std::make_shared<task_generator_msgs::srv::GetEnvironments::Request>();
 
-            while (!get_environments_client->wait_for_service(std::chrono::seconds(1)))
-            {
-                if (!rclcpp::ok())
-                {
-                    RCLCPP_ERROR(service_node->get_logger(), "Interrupted while watiting for the service!. Exiting.");
-                    return;
-                }
-                RCLCPP_INFO(service_node->get_logger(), "Service is not available, waiting again...");
-            }
-
-            auto environment_future = get_environments_client->async_send_request(environment_request);
-            if (rclcpp::spin_until_future_complete(service_node, environment_future) == rclcpp::FutureReturnCode::SUCCESS)
-            {
-                RCLCPP_INFO(service_node->get_logger(), "Got response from get_environments_client!");
-            }
-            else
-            {
-                RCLCPP_ERROR(service_node->get_logger(), "Failed to call service!");
-            }
-
-            auto environment_response = environment_future.get();
+            auto environment_response = sendRequest<task_generator_msgs::srv::GetEnvironments>(get_environments_client, environment_request, "get_environments");
             environment_config_files = environment_response->environments;
 
             environment_config_files_qstringlist = QStringList();
@@ -267,27 +188,8 @@ namespace task_generator_gui
             // Get configs for Parametrized Obstacles Task Mode
             auto parametrized_request = std::make_shared<task_generator_msgs::srv::GetParametrizeds::Request>();
 
-            while (!get_parametrizeds_client->wait_for_service(std::chrono::seconds(1)))
-            {
-                if (!rclcpp::ok())
-                {
-                    RCLCPP_ERROR(service_node->get_logger(), "Interrupted while watiting for the service!. Exiting.");
-                    return;
-                }
-                RCLCPP_INFO(service_node->get_logger(), "Service is not available, waiting again...");
-            }
+            auto parametrized_response = sendRequest<task_generator_msgs::srv::GetParametrizeds>(get_parametrizeds_client, parametrized_request, "get_parametrizeds");
 
-            auto parametrized_future = get_parametrizeds_client->async_send_request(parametrized_request);
-            if (rclcpp::spin_until_future_complete(service_node, parametrized_future) == rclcpp::FutureReturnCode::SUCCESS)
-            {
-                RCLCPP_INFO(service_node->get_logger(), "Got response from get_parametrizeds_client!");
-            }
-            else
-            {
-                RCLCPP_ERROR(service_node->get_logger(), "Failed to call service!");
-            }
-
-            auto parametrized_response = parametrized_future.get();
             parametrized_config_files = parametrized_response->parametrizeds;
 
             parametrized_config_files_qstringlist = QStringList();
@@ -297,38 +199,13 @@ namespace task_generator_gui
             }
 
             // Get configs for Random Obstacles Task Mode
-            auto random_request = std::make_shared<task_generator_msgs::srv::GetRandoms::Request>();
+            auto obstacles_request = std::make_shared<task_generator_msgs::srv::GetObstacles::Request>();
 
-            while (!get_randoms_client->wait_for_service(std::chrono::seconds(1)))
-            {
-                if (!rclcpp::ok())
-                {
-                    RCLCPP_ERROR(service_node->get_logger(), "Interrupted while watiting for the service!. Exiting.");
-                    return;
-                }
-                RCLCPP_INFO(service_node->get_logger(), "Service is not available, waiting again...");
-            }
+            auto obstacles_response = sendRequest<task_generator_msgs::srv::GetObstacles>(get_obstacles_client, obstacles_request, "get_models");
 
-            auto random_future = get_randoms_client->async_send_request(random_request);
-            if (rclcpp::spin_until_future_complete(service_node, random_future) == rclcpp::FutureReturnCode::SUCCESS)
-            {
-                RCLCPP_INFO(service_node->get_logger(), "Got response from get_randoms_client!");
-            }
-            else
-            {
-                RCLCPP_ERROR(service_node->get_logger(), "Failed to call service!");
-            }
-
-            auto random_response = random_future.get();
-            n_static_obstacles_range = random_response->n_static_obstacles;
-            // n_interactive_obstacles_range = random_response->n_interactive_obstacles;
-            n_dynamic_obstacles_range = random_response->n_dynamic_obstacles;
-
-            static_obstacles_all_models = random_response->models_static_obstacles;
+            static_obstacles_all_models = obstacles_response->models_static_obstacles;
             static_obstacles_models_selected = std::vector<int>(static_obstacles_all_models.size(), 0);
-            // interactive_obstacles_all_models = random_response->models_interactive_obstacles;
-            // interactive_obstacles_models_selected = std::vector<int>(interactive_obstacles_all_models.size(), 0);
-            dynamic_obstacles_all_models = random_response->models_dynamic_obstacles;
+            dynamic_obstacles_all_models = obstacles_response->models_dynamic_obstacles;
             dynamic_obstacles_models_selected = std::vector<int>(dynamic_obstacles_all_models.size(), 0);
 
             // Get configs for Scenario Obstacles Task Mode
@@ -345,27 +222,7 @@ namespace task_generator_gui
         auto request = std::make_shared<task_generator_msgs::srv::GetScenarios::Request>();
         request->world = world_name;
 
-        while (!get_scenarios_client->wait_for_service(std::chrono::seconds(1)))
-        {
-            if (!rclcpp::ok())
-            {
-                RCLCPP_ERROR(service_node->get_logger(), "Interrupted while watiting for the service!. Exiting.");
-                return;
-            }
-            RCLCPP_INFO(service_node->get_logger(), "Service is not available, waiting again...");
-        }
-
-        auto future = get_scenarios_client->async_send_request(request);
-        if (rclcpp::spin_until_future_complete(service_node, future) == rclcpp::FutureReturnCode::SUCCESS)
-        {
-            RCLCPP_INFO(service_node->get_logger(), "Got response from get_scenarios_client!");
-        }
-        else
-        {
-            RCLCPP_ERROR(service_node->get_logger(), "Failed to call service!");
-        }
-
-        auto response = future.get();
+        auto response = sendRequest<task_generator_msgs::srv::GetScenarios>(get_scenarios_client, request, "get_scenarios");
         scenario_config_files = response->scenarios;
 
         scenario_config_files_qstringlist = QStringList();
@@ -386,115 +243,181 @@ namespace task_generator_gui
         }
     }
 
-    void TaskGeneratorPanel::setTMObstaclesParamsRequest(rcl_interfaces::srv::SetParameters::Request::SharedPtr request)
+    void TaskGeneratorPanel::setTMObstaclesParamsRequest()
     {
+        RCLCPP_WARN(service_node->get_logger(), "Setting params for Obstacles Task Mode: %s", obstacles_task_mode.toStdString().c_str());
+
         if (obstacles_task_mode == "Environment")
         {
+            auto request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
             rcl_interfaces::msg::Parameter parameter;
             parameter.name = "tm_obstacles";
             parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
             parameter.value.string_value = "environment";
             request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
 
+            if (!hasNestedParameter("task.environment.file"))
+            { // if the param not exist, this will reset the task so the param will be available and its value can be set
+                auto reset_task_request = std::make_shared<std_srvs::srv::Empty::Request>();
+                sendRequest<std_srvs::srv::Empty>(reset_task_client, reset_task_request, "reset_task");
+            }
+
+            request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
             parameter = rcl_interfaces::msg::Parameter();
             parameter.name = "task.environment.file";
             parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
             parameter.value.string_value = selected_environment_config_file;
             request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
         }
         else if (obstacles_task_mode == "Parametrized")
         {
+            auto request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
             rcl_interfaces::msg::Parameter parameter;
             parameter.name = "tm_obstacles";
             parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
             parameter.value.string_value = "parametrized";
             request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
 
+            if (!hasNestedParameter("task.parametrized.file")) // if the param not exist, this will reset the task so the param will be available and its value can be set
+            {
+                auto reset_task_request = std::make_shared<std_srvs::srv::Empty::Request>();
+                sendRequest<std_srvs::srv::Empty>(reset_task_client, reset_task_request, "reset_task");
+            }
+
+            request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
             parameter = rcl_interfaces::msg::Parameter();
             parameter.name = "task.parametrized.file";
             parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
             parameter.value.string_value = selected_parametrized_config_file;
             request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
         }
         else if (obstacles_task_mode == "Random")
         {
+            auto request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
             rcl_interfaces::msg::Parameter parameter;
             parameter.name = "tm_obstacles";
             parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
             parameter.value.string_value = "random";
+            request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
 
+            if (!hasNestedParameter("task.random.static.models"))
+            { // if the param not exist, this will reset the task so the param will be available and its value can be set
+                auto reset_task_request = std::make_shared<std_srvs::srv::Empty::Request>();
+                sendRequest<std_srvs::srv::Empty>(reset_task_client, reset_task_request, "reset_task");
+            }
+
+            request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
             parameter = rcl_interfaces::msg::Parameter();
             parameter.name = "task.random.static.models";
             parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY;
             std::vector<std::string> selected_static_obstacles_models = convert(static_obstacles_models_groupbox->currentText());
             parameter.value.string_array_value = selected_static_obstacles_models;
             request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
 
-            // parameter = rcl_interfaces::msg::Parameter();
-            // parameter.name = "task.random.interactive.models";
-            // parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY;
-            // std::vector<std::string> selected_interactive_obstacles_models = convert(interactive_obstacles_models_groupbox->currentText());
-            // parameter.value.string_array_value = selected_interactive_obstacles_models;
-            // request->parameters.push_back(parameter);
-
+            request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
             parameter = rcl_interfaces::msg::Parameter();
             parameter.name = "task.random.dynamic.models";
             parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY;
             std::vector<std::string> selected_dynamic_obstacles_models = convert(dynamic_obstacles_models_groupbox->currentText());
             parameter.value.string_array_value = selected_dynamic_obstacles_models;
             request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
 
+            request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
             parameter = rcl_interfaces::msg::Parameter();
             parameter.name = "task.random.static.n";
             parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER_ARRAY;
             parameter.value.integer_array_value = n_static_obstacles_range;
             request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
 
-            // parameter = rcl_interfaces::msg::Parameter();
-            // parameter.name = "task.random.interactive.n";
-            // parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER_ARRAY;
-            // parameter.value.integer_array_value = n_interactive_obstacles_range;
-            // request->parameters.push_back(parameter);
-
+            request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
             parameter = rcl_interfaces::msg::Parameter();
             parameter.name = "task.random.dynamic.n";
             parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER_ARRAY;
             parameter.value.integer_array_value = n_dynamic_obstacles_range;
             request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
         }
         else if (obstacles_task_mode == "Scenario")
         {
+            auto request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
             rcl_interfaces::msg::Parameter parameter;
             parameter.name = "tm_obstacles";
             parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
             parameter.value.string_value = "scenario";
             request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
 
+            if (!hasNestedParameter("task.scenario.file"))
+            { // if the param not exist, this will reset the task so the param will be available and its value can be set
+                auto reset_task_request = std::make_shared<std_srvs::srv::Empty::Request>();
+                sendRequest<std_srvs::srv::Empty>(reset_task_client, reset_task_request, "reset_task");
+            }
+
+            request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
             parameter = rcl_interfaces::msg::Parameter();
             parameter.name = "task.scenario.file";
             parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
             parameter.value.string_value = selected_scenario_config_file;
             request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
         }
         else if (obstacles_task_mode == "Prompt")
         {
+            auto request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
             rcl_interfaces::msg::Parameter parameter;
             parameter.name = "tm_obstacles";
             parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
             parameter.value.string_value = "prompt";
             request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
 
+            if (!hasNestedParameter("task.prompt.user_prompt"))
+            { // if the param not exist, this will reset the task so the param will be available and its value can be set
+                auto reset_task_request = std::make_shared<std_srvs::srv::Empty::Request>();
+                sendRequest<std_srvs::srv::Empty>(reset_task_client, reset_task_request, "reset_task");
+            }
+
+            request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
             parameter = rcl_interfaces::msg::Parameter();
             parameter.name = "task.prompt.user_prompt";
             parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
             parameter.value.string_value = typed_prompt;
-            RCLCPP_INFO(service_node->get_logger(), "parameter.value.string_value %s", parameter.value.string_value.c_str());
+            RCLCPP_WARN(service_node->get_logger(), "typed_prompt: %s", parameter.value.string_value.c_str());
             request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
+
+            request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
+            parameter = rcl_interfaces::msg::Parameter();
+            parameter.name = "task.prompt.behavior_tree";
+            parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_BOOL;
+            parameter.value.bool_value = use_behavior_tree;
+            RCLCPP_WARN(service_node->get_logger(), "use_behavior_tree: %d", parameter.value.bool_value);
+            request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
+
+            request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
+            parameter = rcl_interfaces::msg::Parameter();
+            parameter.name = "task.prompt.top_p";
+            parameter.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
+            parameter.value.double_value = top_p;
+            RCLCPP_WARN(service_node->get_logger(), "top_p: %lf", parameter.value.double_value);
+            request->parameters.push_back(parameter);
+            sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
         }
     }
 
-    void TaskGeneratorPanel::setTMRobotsParamsRequest(rcl_interfaces::srv::SetParameters::Request::SharedPtr request)
+    void TaskGeneratorPanel::setTMRobotsParamsRequest()
     {
+        auto request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
+
         if (robots_task_mode == "Explore")
         {
             rcl_interfaces::msg::Parameter parameter;
@@ -527,6 +450,7 @@ namespace task_generator_gui
             parameter.value.string_value = "scenario";
             request->parameters.push_back(parameter);
         }
+        sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
     }
 
     bool TaskGeneratorPanel::generateWorld()
@@ -573,36 +497,24 @@ namespace task_generator_gui
         world_param.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
         world_param.value.string_value = selected_world;
         request->parameters.push_back(world_param);
+        sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
 
+        request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
         rcl_interfaces::msg::Parameter robot_model_param;
         robot_model_param.name = "robot";
         robot_model_param.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
         robot_model_param.value.string_value = selected_robot_model;
         request->parameters.push_back(robot_model_param);
+        sendRequest<rcl_interfaces::srv::SetParameters>(set_param_client, request, "set_param");
 
-        setTMObstaclesParamsRequest(request);
-        setTMRobotsParamsRequest(request);
+        // auto lowered_obstacles_taskmode = obstacles_task_mode.toStdString();
+        // lowered_obstacles_taskmode[0] = std::tolower(static_cast<unsigned char>(lowered_obstacles_taskmode[0]));
 
-        auto future = set_param_client->async_send_request(request);
+        setTMObstaclesParamsRequest();
+        setTMRobotsParamsRequest();
 
-        if (rclcpp::spin_until_future_complete(service_node, future) == rclcpp::FutureReturnCode::SUCCESS)
-        {
-            RCLCPP_INFO(service_node->get_logger(), "Successfully set parameter");
-        }
-        else
-        {
-            RCLCPP_ERROR(service_node->get_logger(), "Failed to set parameter");
-        }
-
-        auto reset_task_future = reset_task_client->async_send_request(std::make_shared<std_srvs::srv::Empty::Request>());
-        if (rclcpp::spin_until_future_complete(service_node, reset_task_future) == rclcpp::FutureReturnCode::SUCCESS)
-        {
-            RCLCPP_INFO(service_node->get_logger(), "Successfully reset task scenario");
-        }
-        else
-        {
-            RCLCPP_ERROR(service_node->get_logger(), "Failed to reset task scenario");
-        }
+        auto reset_task_request = std::make_shared<std_srvs::srv::Empty::Request>();
+        sendRequest<std_srvs::srv::Empty>(reset_task_client, reset_task_request, "reset_task");
 
         getParams();
     }
@@ -691,4 +603,49 @@ namespace task_generator_gui
 
         return false;
     }
+
+    template <typename ServiceT>
+    typename ServiceT::Response::SharedPtr TaskGeneratorPanel::sendRequest(
+        const typename rclcpp::Client<ServiceT>::SharedPtr &client,
+        const typename ServiceT::Request::SharedPtr &request,
+        const std::string &service_name,
+        std::chrono::milliseconds cooldown)
+    {
+        // Wait for the service to be available
+        while (!client->wait_for_service(std::chrono::seconds(10)))
+        {
+            if (!rclcpp::ok())
+            {
+                RCLCPP_ERROR(service_node->get_logger(),
+                             "Interrupted while waiting for the service [%s]. Exiting.",
+                             service_name.c_str());
+                return nullptr;
+            }
+            RCLCPP_INFO(service_node->get_logger(),
+                        "Service [%s] not available, waiting again...", service_name.c_str());
+        }
+
+        // Send async request
+        auto future = client->async_send_request(request);
+
+        // Wait for result
+        if (rclcpp::spin_until_future_complete(service_node, future) ==
+            rclcpp::FutureReturnCode::SUCCESS)
+        {
+            RCLCPP_INFO(service_node->get_logger(),
+                        "Got response from service [%s]!", service_name.c_str());
+
+            rclcpp::sleep_for(cooldown);
+            return future.get();
+        }
+        else
+        {
+            RCLCPP_ERROR(service_node->get_logger(),
+                         "Failed to call service [%s]!", service_name.c_str());
+
+            rclcpp::sleep_for(cooldown);
+            return nullptr;
+        }
+    }
+
 } // namespace task_generator_gui

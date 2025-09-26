@@ -1,21 +1,17 @@
 from __future__ import annotations
 
 import abc
-import itertools
-import typing
-from collections.abc import Collection
 
 from arena_rclpy_mixins.shared import Namespace
-
-from task_generator import NodeInterface
 from task_generator.constants import Constants
-from task_generator.shared import Door, Entity, Floor, ModelType, Pose, Wall
 from task_generator.utils.registry import Registry
 
-from ._interface import ObstacleITF, PedestrianITF, RobotITF
+from task_generator import NodeInterface
+
+from ._interface import ObstacleITF, PedestrianITF, RobotITF, WorldITF
 
 
-class BaseSim(NodeInterface, ObstacleITF, PedestrianITF, RobotITF, abc.ABC):
+class BaseSim(NodeInterface, ObstacleITF, PedestrianITF, RobotITF, WorldITF, abc.ABC):
 
     _namespace: Namespace
 
@@ -38,33 +34,6 @@ class BaseSim(NodeInterface, ObstacleITF, PedestrianITF, RobotITF, abc.ABC):
         simulation.
         """
         raise NotImplementedError()
-
-    @abc.abstractmethod
-    def spawn_walls(self, walls: list[Wall]) -> bool:
-        """
-        Add a list of walls to the simulator.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def spawn_floors(self, floors: list[Floor]) -> bool:
-        """
-        Add a list of floors to the simulator.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def spawn_doors(self, doors: list[Door]) -> bool:
-        """
-        Add a list of doors to the simulator.
-        """
-        return True
-
-    def remove_walls_doors(self) -> bool:
-        """
-        Remove every spawned wall and door from the simulator.
-        """
-        return True
 
 
 SimulatorRegistry = Registry[Constants.SimSimulator, BaseSim]()

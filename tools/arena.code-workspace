@@ -119,6 +119,7 @@
 			"${workspaceFolder:arena-rosnav}/../../../install/std_srvs/lib/python3.10/site-packages/",
 			"${workspaceFolder:arena-rosnav}/../../../install/arena_rclpy_mixins/lib/python3.10/site-packages/",
 			"${workspaceFolder:arena-rosnav}/../../../install/task_generator_msgs/lib/python3.10/site-packages/",
+			"${workspaceFolder:arena-rosnav}/../../../install/isaacsim_msgs/lib/python3.10/site-packages/",
 			"${workspaceFolder:arena-rosnav}/../../../build/ament_index_python",
 			"${workspaceFolder:arena-rosnav}/../../../build/arena_rclpy_mixins/",
 			"${workspaceFolder:arena-rosnav}/../../../build/hunav_msgs/",
@@ -137,6 +138,7 @@
 			"${workspaceFolder:arena-rosnav}/../../../install/std_srvs/lib/python3.10/site-packages/",
 			"${workspaceFolder:arena-rosnav}/../../../install/arena_rclpy_mixins/lib/python3.10/site-packages/",
 			"${workspaceFolder:arena-rosnav}/../../../install/task_generator_msgs/lib/python3.10/site-packages/",
+			"${workspaceFolder:arena-rosnav}/../../../install/isaacsim_msgs/lib/python3.10/site-packages/",
 			"${workspaceFolder:arena-rosnav}/../../../build/ament_index_python",
 			"${workspaceFolder:arena-rosnav}/../../../build/arena_rclpy_mixins/",
 			"${workspaceFolder:arena-rosnav}/../../../build/hunav_msgs/",
@@ -145,10 +147,22 @@
 			"${workspaceFolder:arena-rosnav}/../../../build/launch/",
 			"${workspaceFolder:arena-rosnav}/../../../build/launch_ros/",
 			"${workspaceFolder:arena-rosnav}/.venv/lib/python3.10/site-packages/"
-		]
+		],
+		"python.analysis.typeCheckingMode": "standard"
 	},
 	"launch": {
 		"version": "0.2.0",
-		"configurations": []
+		"configurations": [
+			{
+				"name": "Attach to ROS2 Python Node",
+				"type": "debugpy",
+				"request": "attach",
+				"connect": {
+					"host": "localhost",
+					"port": 8765
+				},
+				"justMyCode": false
+			}
+		]
 	}
 }

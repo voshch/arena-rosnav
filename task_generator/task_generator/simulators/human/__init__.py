@@ -63,12 +63,12 @@ class BaseHumanSimulator(NodeInterface, abc.ABC):
             if (known := self._known_obstacles.get(obstacle.name)) is not None:
                 known.obstacle = obstacle
                 self._simulator.obstacle_move(known.obstacle.name, known.obstacle.pose)
+                known.layer = layer
             else:
                 known = self._known_obstacles.create_or_get(
                     name=obstacle.name,
                     obstacle=obstacle,
                 )
-            known.layer = layer
             if not known.spawned:
                 unspawneds.append(known)
 
@@ -76,10 +76,13 @@ class BaseHumanSimulator(NodeInterface, abc.ABC):
         for (known, obstacle) in zip(unspawneds, self._spawn_obstacles_impl([unspawned.obstacle for unspawned in unspawneds])):
             if not obstacle:
                 continue
-            to_simulator.append(known.obstacle)
+            known.obstacle = obstacle
+            known.spawned = True
 
-        for (known, result) in zip(unspawneds, self._simulator.obstacle_spawn(to_simulator)):
-            known.spawned = result
+            if known.layer == ObstacleLayer.UNUSED:
+                to_simulator.append(known.obstacle)
+
+        self._simulator.obstacle_spawn(to_simulator)
 
     def spawn_dynamic_obstacles(
         self,

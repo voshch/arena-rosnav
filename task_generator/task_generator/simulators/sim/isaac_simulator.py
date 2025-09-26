@@ -238,7 +238,7 @@ class IsaacSimulator(BaseSim):
                             name=self._NS_WALL(wall_name),
                             start=segment.start.to_msg(),
                             end=end,
-                            material=Material(**segment.material.load().asdict()),
+                            material=Material(**segment.material.load(default=segment.material.DEFAULT().load()).asdict()),
                             thickness=segment.width,
                         )
                     )
@@ -284,7 +284,7 @@ class IsaacSimulator(BaseSim):
                         x_length=floor.x_length,
                         y_length=floor.y_length,
                         pos=floor.pos.to_msg(),
-                        material=Material(**floor.material.load().asdict()),
+                        material=Material(**floor.material.load(default=floor.material.DEFAULT().load()).asdict()),
                     )
                 )
 
@@ -308,7 +308,7 @@ class IsaacSimulator(BaseSim):
                         name=self._NS_DOOR(door.name),
                         start=door.start.to_msg(),
                         end=end,
-                        material=Material(**door.material.load().asdict()),
+                        material=Material(**door.material.load(default=door.material.DEFAULT().load()).asdict()),
                         thickness=0.1,
                         kind=door.kind,
                     )
@@ -340,7 +340,7 @@ class IsaacSimulator(BaseSim):
                         size=size,
                         height_min=elevator.height_min,
                         height_max=elevator.height_max,
-                        material=Material(**elevator.material.load().asdict()),
+                        material=Material(**elevator.material.load(default=elevator.material.DEFAULT().load()).asdict()),
                     )
                 )
             except Exception as e:

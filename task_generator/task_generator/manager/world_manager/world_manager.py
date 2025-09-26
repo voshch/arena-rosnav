@@ -5,10 +5,10 @@ from typing import Optional
 
 import numpy as np
 import scipy.signal
-from task_generator.shared import Position, PositionRadius, Wall
 from arena_simulation_setup.worlds.world import WorldDescription
 
 from task_generator import NodeInterface
+from task_generator.shared import Position, PositionRadius, Wall
 
 from .utils import WorldMap, WorldOccupancy, occupancy_to_walls
 

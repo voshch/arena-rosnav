@@ -111,11 +111,10 @@ class IsaacSimulator(BaseSim):
         def impl(robot: Robot) -> bool:
             try:
                 model = robot.model.get(
-                    [
+                    (
                         ModelType.URDF,
                         # ModelType.USD
-                    ],
-                    loader_args=robot.asdict(),
+                    )
                 )
 
                 if model.type == ModelType.URDF:
@@ -169,8 +168,13 @@ class IsaacSimulator(BaseSim):
     def obstacle_spawn(self, obstacles):
         req = SpawnPrims.Request()
 
-        for obstacle in obstacles:
+        results = [True] * len(obstacles)
+
+        for i, obstacle in enumerate(obstacles):
             model = obstacle.model.get([ModelType.USD])
+            if model.type is ModelType.UNKNOWN:
+                results[i] = False
+                continue
             prim = Prim()
             prim.usd_path = model.path
             prim.name = self._NS_PRIM(obstacle.name)
@@ -178,8 +182,9 @@ class IsaacSimulator(BaseSim):
             req.prims.append(prim)
 
         response = self._services.SpawnPrims.client.call(req)
+        response_iter = iter(response.ret)
 
-        return response.ret
+        return tuple(a and next(response_iter) for a in results)
 
     def obstacle_move(self, obstacles):
         def move_obstacle(obstacle: Obstacle) -> bool:
@@ -233,7 +238,7 @@ class IsaacSimulator(BaseSim):
                             name=self._NS_WALL(wall_name),
                             start=segment.start.to_msg(),
                             end=end,
-                            material=Material(**segment.material.load().asdict()),
+                            material=Material(**segment.material.load(default=segment.material.DEFAULT().load()).asdict()),
                             thickness=segment.width,
                         )
                     )
@@ -246,7 +251,9 @@ class IsaacSimulator(BaseSim):
             for obstacle in obstacles:
                 try:
                     prim_name = self.node._environment_manager.realize(f"obstacle_{next(self.wall_counter)}")
-                    model = obstacle.model.get([ModelType.USD])
+                    model = obstacle.model.get(ModelType.USD)
+                    if model.type is ModelType.UNKNOWN:
+                        continue
                     prim = Prim()
                     prim.usd_path = model.path
                     prim.name = self._NS_WALL(prim_name)
@@ -277,7 +284,7 @@ class IsaacSimulator(BaseSim):
                         x_length=floor.x_length,
                         y_length=floor.y_length,
                         pos=floor.pos.to_msg(),
-                        material=Material(**floor.material.load().asdict()),
+                        material=Material(**floor.material.load(default=floor.material.DEFAULT().load()).asdict()),
                     )
                 )
 
@@ -301,7 +308,7 @@ class IsaacSimulator(BaseSim):
                         name=self._NS_DOOR(door.name),
                         start=door.start.to_msg(),
                         end=end,
-                        material=Material(**door.material.load().asdict()),
+                        material=Material(**door.material.load(default=door.material.DEFAULT().load()).asdict()),
                         thickness=0.1,
                         kind=door.kind,
                     )
@@ -333,7 +340,7 @@ class IsaacSimulator(BaseSim):
                         size=size,
                         height_min=elevator.height_min,
                         height_max=elevator.height_max,
-                        material=Material(**elevator.material.load().asdict()),
+                        material=Material(**elevator.material.load(default=elevator.material.DEFAULT().load()).asdict()),
                     )
                 )
             except Exception as e:

@@ -4,6 +4,7 @@ import tempfile
 import time
 import typing
 
+import arena_simulation_setup
 import arena_simulation_setup.worlds
 import launch
 import launch.actions
@@ -182,10 +183,13 @@ class WorldManagerROS(MapServerHandler, WorldManager):
     def _map_callback(self, costmap: nav_msgs.msg.OccupancyGrid):
         if self._map.time <= costmap.info.map_load_time:
 
+            world = arena_simulation_setup.worlds.World(self.world_name)
+
             self.update_world(
                 world_map=WorldMap.from_costmap(costmap),
-                world_description=arena_simulation_setup.worlds.World(self.world_name).load()
+                world_description=world.load()
             )
+            arena_simulation_setup.set_world_dir(world.path)
 
             self._map_name = self.world_name
 
@@ -194,8 +198,8 @@ class WorldManagerROS(MapServerHandler, WorldManager):
                     callback()
                 except Exception as e:
                     self._logger.warning(f'encountered exception in world callback: {repr(e)}')
-                    import traceback
                     import sys
+                    import traceback
                     traceback.print_exc(file=sys.stderr)
 
     def _setup_world_callbacks(self):

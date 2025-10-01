@@ -79,6 +79,10 @@ class DummySimulator(BaseSim):
         self._logger.debug(f'spawning {len(doors)} doors')
         return True
 
+    def spawn_elevators(self, elevators) -> bool:
+        self._logger.debug(f'spawning {len(elevators)} elevators')
+        return True
+
     def remove_walls_doors(self):
         self._logger.debug('removing all walls and doors')
         return True

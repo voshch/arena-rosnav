@@ -12,13 +12,16 @@ import attrs
 import numpy as np
 import rclpy
 import rclpy.client
+from geometry_msgs.msg import Point
 from isaacsim_msgs.msg import (
     Door,
+    Elevator,
     Floor,
     Material,
     Pedestrian,
     PedestrianGoal,
     Prim,
+    Scale,
     Wall,
 )
 from isaacsim_msgs.srv import (
@@ -26,6 +29,7 @@ from isaacsim_msgs.srv import (
     EditPrims,
     NavigatePedestrians,
     SpawnDoors,
+    SpawnElevators,
     SpawnFloors,
     SpawnPedestrians,
     SpawnPrims,
@@ -34,7 +38,6 @@ from isaacsim_msgs.srv import (
     SpawnWalls,
 )
 from std_msgs.msg import String as StdString
-
 from task_generator.shared import (
     DynamicObstacle,
     ModelType,
@@ -42,7 +45,7 @@ from task_generator.shared import (
     Obstacle,
     Robot,
 )
-from task_generator.simulators.sim import BaseSim
+from task_generator.simulators.sim import BaseSim, NodeInterface
 
 
 @attrs.define()
@@ -84,6 +87,7 @@ class IsaacSimulator(BaseSim):
         SpawnUrdf = _Service(type_=SpawnUrdf, name="isaac/SpawnUrdf")
         SpawnUsd = _Service(type_=SpawnUsd, name="isaac/SpawnUsd")
         SpawnWalls = _Service(type_=SpawnWalls, name="isaac/SpawnWalls")
+        SpawnElevators = _Service(type_=SpawnElevators, name="isaac/SpawnElevators")
 
     def __init__(self, namespace):
         """Initialize IsaacSimulator
@@ -91,14 +95,17 @@ class IsaacSimulator(BaseSim):
         Args:
             namespace: Namespace for the simulator
         """
+        NodeInterface.__init__(self)
         super().__init__(namespace)
 
-        self._logger.info(f"Initializing IsaacSimulator with namespace: {namespace}")
+        self.wall_counter = itertools.count()
+        self.floor_counter = itertools.count()
+        self._spawned_doors = []
 
         self._init_service_clients()
-        self._wall_counter = itertools.count()
-        self._floor_counter = itertools.count()
-        self._logger.info("Done initializing Isaac Sim")
+
+        if hasattr(self, 'node') and self.node is not None:
+            self._logger.info(f"IsaacSimulator initialized with namespace: {namespace}")
 
     def robot_spawn(self, robots):
         def impl(robot: Robot) -> bool:
@@ -217,17 +224,17 @@ class IsaacSimulator(BaseSim):
             segments, obstacles = wall.assets()
 
             for segment in segments:
+                end = segment.end.to_msg()
+                end.z += segment.height
                 try:
-                    wall_name = self.node._environment_manager.realize(f"wall_{next(self._wall_counter)}")
+                    wall_name = self.node._environment_manager.realize(f"wall_{next(self.wall_counter)}")
                     walls_req.walls.append(
                         Wall(
                             name=self._NS_WALL(wall_name),
-                            start=segment.start,
-                            end=segment.end,
-                            height=segment.height,
-                            width=segment.width,
+                            start=segment.start.to_msg(),
+                            end=end,
                             material=Material(**segment.material.load().asdict()),
-                            z_offset=segment.start.z
+                            thickness=segment.width,
                         )
                     )
 
@@ -238,7 +245,7 @@ class IsaacSimulator(BaseSim):
 
             for obstacle in obstacles:
                 try:
-                    prim_name = self.node._environment_manager.realize(f"obstacle_{next(self._wall_counter)}")
+                    prim_name = self.node._environment_manager.realize(f"obstacle_{next(self.wall_counter)}")
                     model = obstacle.model.get([ModelType.USD])
                     prim = Prim()
                     prim.usd_path = model.path
@@ -263,14 +270,13 @@ class IsaacSimulator(BaseSim):
 
         for floor in floors:
             try:
-                pos = [floor.pos.x, floor.pos.y]
-                i = next(self._floor_counter)
+                i = next(self.floor_counter)
                 req.floors.append(
                     Floor(
                         name=self._NS_FLOOR(f"floor_{i}"),
                         x_length=floor.x_length,
                         y_length=floor.y_length,
-                        pos=pos,
+                        pos=floor.pos.to_msg(),
                         material=Material(**floor.material.load().asdict()),
                     )
                 )
@@ -286,27 +292,55 @@ class IsaacSimulator(BaseSim):
 
     def spawn_doors(self, doors) -> bool:
         req = SpawnDoors.Request()
-
         for door in doors:
             try:
+                end = door.end.to_msg()
+                end.z += door.height
                 req.doors.append(
                     Door(
                         name=self._NS_DOOR(door.name),
-                        start=[door.start.x, door.start.y],
-                        end=[door.end.x, door.end.y],
-                        height=door.height,
+                        start=door.start.to_msg(),
+                        end=end,
                         material=Material(**door.material.load().asdict()),
+                        thickness=0.1,
                         kind=door.kind,
                     )
                 )
-
             except Exception as e:
                 self._logger.error("Failed to spawn door")
                 self._logger.error(repr(e))
                 traceback.print_exc(file=sys.stderr)
-
         res = all(self._services.SpawnDoors.client.call(req).ret)
         self._logger.info("All doors spawned successfully.")
+        return res
+
+    def spawn_elevators(self, elevators) -> bool:
+        self._logger.debug(f"IsaacSimulator.spawn_elevators ENTRY, elevators: {elevators}")
+        self._logger.debug(f"IsaacSimulator.spawn_elevators called with: {[e.name for e in elevators]}")
+        for e in elevators:
+            self._logger.debug(f"Elevator data: {e}")
+
+        req = SpawnElevators.Request()
+        for elevator in elevators:
+            try:
+                pos = elevator.position
+                size = elevator.size
+                size = Scale(x=size[0], y=size[1], z=size[2])
+                req.elevators.append(
+                    Elevator(
+                        name=elevator.name,
+                        position=pos,
+                        size=size,
+                        height_min=elevator.height_min,
+                        height_max=elevator.height_max,
+                        material=Material(**elevator.material.load().asdict()),
+                    )
+                )
+            except Exception as e:
+                self._logger.error(f"Failed to append elevator: {elevator.name}, error: {e}")
+
+        res = all(self._services.SpawnElevators.client.call(req).ret)
+        self._logger.debug("All elevators spawned successfully." if res else "Failed to spawn one or more elevators")
         return res
 
     # TODO: update
@@ -403,7 +437,7 @@ class IsaacSimulator(BaseSim):
         preflight = tuple(map(impl, pedestrians.pedestrians))
         results = self._services.NavigatePedestrians.client.call(req).ret
 
-        return (a and b for a, b in zip(preflight, results))
+        return tuple(a and b for a, b in zip(preflight, results))
 
     def _delete_entity(self, name: str) -> bool:
         self._logger.debug(f"Attempting to delete prim {name}")
@@ -451,33 +485,55 @@ class IsaacSimulator(BaseSim):
         """
         Initialize all ROS 2 service clients and wait for their availability.
         """
-        self._logger.info("Initializing service clients...")
+        if hasattr(self, 'node') and self.node is not None:
+            logger = self._logger
+            logger.info("Initializing service clients...")
+        else:
+            logger = None
+            print("Initializing service clients...")
 
         # Define services with their corresponding client attributes
-
         for service in (service for at, service in self._services.__dict__.items() if not at.startswith('_')):
-            service.client = self.node.create_client(service.type_, service.name)
-            self._logger.debug(f'Waiting for service "{service.name}"...')
+            service.client = self.node.create_client(service.type_, service.name) if hasattr(self, 'node') and self.node is not None else None
+            if logger:
+                logger.debug(f'Waiting for service "{service.name}"...')
+            else:
+                print(f'Waiting for service "{service.name}"...')
 
             poll_interval: float = 1.0
             shout_every: int = 30
 
             polls: int = 0
-            while not service.client.wait_for_service(timeout_sec=poll_interval):
-                polls += 1
-                if polls % shout_every == 0:
-                    self._logger.warning(f'Service "{service.name}" not available after waiting {poll_interval * polls}s'
-                                         )
-            self._logger.debug(f'Service "{service.name}" is now available.')
+            if service._client is not None:
+                while not service._client.wait_for_service(timeout_sec=poll_interval):
+                    polls += 1
+                    if polls % shout_every == 0:
+                        if logger:
+                            logger.warning(f'Service "{service.name}" not available after waiting {poll_interval * polls}s')
+                        else:
+                            print(f'Service "{service.name}" not available after waiting {poll_interval * polls}s')
+                if logger:
+                    logger.debug(f'Service "{service.name}" is now available.')
+                else:
+                    print(f'Service "{service.name}" is now available.')
 
         self.ped_dict = {}
 
         # Publisher for external registration messages so IsaacSim's DoorManager
         # can be informed about spawned entities in the IsaacSim process.
         try:
-            self._reg_pub = self.node.create_publisher(StdString, '/isaac/register_entity', 10)
-            self._logger.info('Created /isaac/register_entity publisher')
+            self._reg_pub = self.node.create_publisher(StdString, '/isaac/register_entity', 10) if hasattr(self, 'node') and self.node is not None else None
+            if logger:
+                logger.info('Created /isaac/register_entity publisher')
+            else:
+                print('Created /isaac/register_entity publisher')
         except Exception as e:
             self._reg_pub = None
-            self._logger.warning(f'Failed to create registration publisher: {e}')
-        self._logger.info("All service clients initialized and available.")
+            if logger:
+                logger.warning(f'Failed to create registration publisher: {e}')
+            else:
+                print(f'Failed to create registration publisher: {e}')
+        if logger:
+            logger.info("All service clients initialized and available.")
+        else:
+            print("All service clients initialized and available.")

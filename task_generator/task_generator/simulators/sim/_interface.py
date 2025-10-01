@@ -5,8 +5,16 @@
 import abc
 from collections.abc import Sequence
 
-from task_generator.shared import DynamicObstacle, Obstacle, Robot
 from arena_people_msgs.msg import Pedestrians
+from arena_simulation_setup.shared import Elevator
+from task_generator.shared import (
+    Door,
+    DynamicObstacle,
+    Floor,
+    Obstacle,
+    Robot,
+    Wall,
+)
 
 
 class ObstacleITF(abc.ABC):
@@ -65,4 +73,41 @@ class RobotITF(abc.ABC):
     @abc.abstractmethod
     def robot_delete(self, robots: Sequence[Robot]) -> Sequence[bool]:
         """Delete robots."""
+        raise NotImplementedError()
+
+
+class WorldITF(abc.ABC):
+    @abc.abstractmethod
+    def spawn_walls(self, walls: list[Wall]) -> bool:
+        """
+        Add a list of walls to the simulator.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def spawn_floors(self, floors: list[Floor]) -> bool:
+        """
+        Add a list of floors to the simulator.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def spawn_doors(self, doors: list[Door]) -> bool:
+        """
+        Add a list of doors to the simulator.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def spawn_elevators(self, elevators: list[Elevator]) -> bool:
+        """
+        Add a list of elevators to the simulator.
+        """
+        raise NotImplementedError()
+
+    # TODO rename
+    def remove_walls_doors(self) -> bool:
+        """
+        Remove every spawned wall and door from the simulator.
+        """
         raise NotImplementedError()

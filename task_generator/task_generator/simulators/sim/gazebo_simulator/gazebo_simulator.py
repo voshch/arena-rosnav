@@ -9,17 +9,23 @@ import launch_ros
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from ros_gz_interfaces.msg import Entity as EntityMsg
 from ros_gz_interfaces.msg import EntityFactory, WorldControl
-from ros_gz_interfaces.srv import (ControlWorld, DeleteEntity, SetEntityPose,
-                                   SpawnEntity)
-
-from task_generator.shared import (Entity, Model, ModelType, ModelWrapper,
-                                   Pose, Robot, Wall)
+from ros_gz_interfaces.srv import ControlWorld, DeleteEntity, SetEntityPose, SpawnEntity
+from task_generator.shared import (
+    Entity,
+    Model,
+    ModelType,
+    ModelWrapper,
+    Pose,
+    Robot,
+    Wall,
+)
 from task_generator.simulators.sim import BaseSim
+from task_generator.simulators.sim.dummy_simulator import DummySimulator
 
 from .robot_bridge import BridgeConfiguration
 
 
-class GazeboSimulator(BaseSim):
+class GazeboSimulator(DummySimulator, BaseSim):
 
     def __init__(self, namespace):
         super().__init__(namespace=namespace)
@@ -33,18 +39,18 @@ class GazeboSimulator(BaseSim):
             self._namespace("goal"),
             10,
         )
-        self.entities: list[str] = {}
+        self.entities: dict[str, Entity] = {}
         self._walls_entities: list[str] = []
         self._wall_counter = itertools.count()
 
     def before_reset_task(self):
         self._logger.info("Pausing simulation before reset")
-        self.pause_simulation()
+        return bool(self.pause_simulation())
 
     def after_reset_task(self):
         self._logger.info("Unpausing simulation after reset")
         try:
-            self.unpause_simulation()
+            return self.unpause_simulation()
         except Exception as e:
             self._logger.error(
                 f"Error unpausing simulation: {str(e)}")

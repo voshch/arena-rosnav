@@ -50,6 +50,16 @@ def generate_launch_description():
         name='sim',
         default_value='dummy',  # todo select first installed simulator
     )
+    start_sim = LaunchArgument(
+        name='start_sim',
+        default_value='true',
+        description='If true, start the simulator as part of this launch'
+    )
+    sim_lock = LaunchArgument(
+        name='sim_lock',
+        default_value='/tmp/arena_sim.lock',
+        description='Path to lock file: if present, include simulator launch'
+    )
     headless = LaunchArgument(
         name='headless',
         default_value='0',
@@ -240,6 +250,74 @@ def generate_launch_description():
         }.items(),
     )
 
+    def _maybe_include_simulator(context):
+        lock_path = launch.utilities.perform_substitutions(
+            context, [sim_lock.substitution]
+        )
+
+        start_sim_val = launch.utilities.perform_substitutions(
+            context, [start_sim.substitution]
+        )
+        try:
+            if str(start_sim_val).lower() not in ('1', 'true', 'yes'):
+                return []
+        except Exception:
+            return []
+
+        def _is_pid_alive(pid: int) -> bool:
+            try:
+                os.kill(pid, 0)
+            except Exception:
+                return False
+            return True
+        try:
+            if os.path.exists(lock_path):
+                try:
+                    with open(lock_path, 'r') as f:
+                        data = f.read().strip().split()
+                        if data:
+                            pid = int(data[0])
+                            if not _is_pid_alive(pid):
+                                # stale lock, remove it
+                                try:
+                                    os.remove(lock_path)
+                                except Exception:
+                                    pass
+                            else:
+                                # valid lock -> include simulator
+                                return [IsolatedGroupAction([launch_simulator])]
+                except Exception:
+                    # if parsing fails, try to remove stale lock
+                    try:
+                        os.remove(lock_path)
+                    except Exception:
+                        pass
+            try:
+                # write pid and timestamp into the lock file
+                with open(lock_path, 'w') as f:
+                    f.write(f"{os.getpid()} {int(time.time())}\n")
+            except Exception:
+                # if we fail to create lock, proceed without it
+                pass
+            def _cleanup_lock(context2):
+                try:
+                    if os.path.exists(lock_path):
+                        os.remove(lock_path)
+                except Exception:
+                    pass
+            cleanup_action = launch.actions.RegisterEventHandler(
+                launch.event_handlers.OnShutdown(
+                    on_shutdown=[launch.actions.OpaqueFunction(function=_cleanup_lock)]
+                )
+            )
+            return [IsolatedGroupAction([launch_simulator, cleanup_action])]
+
+        except Exception:
+            # fallback: do not include simulator
+            return []
+
+    include_simulator_action = launch.actions.OpaqueFunction(function=_maybe_include_simulator)
+
     world_generator_node = launch_ros.actions.Node(
         package='arena_simulation_setup',
         executable='world_generator',
@@ -258,7 +336,7 @@ def generate_launch_description():
         ),
         SetGlobalLogLevelAction(log_level.substitution),
         launch_task_generators,
-        IsolatedGroupAction([launch_simulator]),
+    include_simulator_action,
         world_generator_node,
     ])
     return ld

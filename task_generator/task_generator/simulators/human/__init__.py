@@ -289,6 +289,11 @@ def lazy_hunavsim():
     from .hunav.hunav import HunavHumanSimulator
     return HunavHumanSimulator
 
+@EntityManagerRegistry.register(Constants.HumanSimulator.SOCNAV)
+def lazy_socnavsim():
+    from .socnav.socnav import SocNavHumanSimulator
+    return SocNavHumanSimulator
+
 
 @EntityManagerRegistry.register(Constants.HumanSimulator.ISAAC)
 def isaacsim():

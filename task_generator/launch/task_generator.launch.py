@@ -103,7 +103,7 @@ def generate_launch_description():
             {"namespace": namespace.substitution},
         ],
         output="screen",
-        condition=launch.conditions.IfCondition(PythonExpression(['"', human.substitution, '" == "hunav"'])),
+        condition=launch.conditions.IfCondition(PythonExpression(['"', human.substitution, '" in ["hunav", "socnav"]'])),
     )
     # Start the rviz config generator which launches also rviz2 with desired config file
     rviz_node = launch_ros.actions.Node(

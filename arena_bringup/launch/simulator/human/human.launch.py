@@ -43,6 +43,12 @@ def generate_launch_description():
         )
     )
 
+    launch_human_simulator.add(
+        'socnav',
+        launch.actions.GroupAction([])
+    )
+
+
     simulator = LaunchArgument(
         name='simulator',
         choices=launch_human_simulator.keys,

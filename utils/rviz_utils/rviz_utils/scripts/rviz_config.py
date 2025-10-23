@@ -95,10 +95,10 @@ class ConfigFileGenerator(Node):
             elif topic_name.endswith('/pedestrian_markers') and 'visualization_msgs/msg/MarkerArray' in topic_types:
                 pedestrian_topics.append((topic_name, 'visualization_msgs/msg/MarkerArray'))
             # Check for legacy people topics (fallback)
-            elif topic_name.endswith('/people') and 'people_msgs/msg/People' in topic_types:
-                pedestrian_topics.append((topic_name, 'people_msgs/msg/People'))
-            elif topic_name.endswith('/human_states') and 'hunav_msgs/msg/Agents' in topic_types:
-                pedestrian_topics.append((topic_name, 'hunav_msgs/msg/Agents'))
+            # elif topic_name.endswith('/people') and 'people_msgs/msg/People' in topic_types:
+            #     pedestrian_topics.append((topic_name, 'people_msgs/msg/People'))
+            # elif topic_name.endswith('/human_states') and 'hunav_msgs/msg/Agents' in topic_types:
+            #     pedestrian_topics.append((topic_name, 'hunav_msgs/msg/Agents'))
 
         if not pedestrian_topics:
             self.get_logger().info("No pedestrian topics found. Pedestrian group will be empty.")
@@ -117,15 +117,15 @@ class ConfigFileGenerator(Node):
                 pedestrian_group['Displays'].append(display)
                 self.get_logger().info(f"Added MarkerArray display for pedestrians: {topic_name}")
 
-            elif topic_type == 'people_msgs/msg/People':
-                # Add raw people display as fallback
-                display = Utils.Displays.pedestrians_raw(topic_name)
-                pedestrian_group['Displays'].append(display)
-                self.get_logger().info(f"Added raw People display: {topic_name}")
+            # elif topic_type == 'people_msgs/msg/People':
+            #     # Add raw people display as fallback
+            #     display = Utils.Displays.pedestrians_raw(topic_name)
+            #     pedestrian_group['Displays'].append(display)
+            #     self.get_logger().info(f"Added raw People display: {topic_name}")
 
-            elif topic_type == 'hunav_msgs/msg/Agents':
-                # Could add custom agent display here if needed
-                self.get_logger().info(f"Found HuNav agents topic: {topic_name} (not yet implemented)")
+            # elif topic_type == 'hunav_msgs/msg/Agents':
+            #     # Could add custom agent display here if needed
+            #     self.get_logger().info(f"Found HuNav agents topic: {topic_name} (not yet implemented)")
 
         # Add TF display for pedestrian frames (disabled fallback only)
         tf_display = {

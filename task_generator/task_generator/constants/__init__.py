@@ -22,6 +22,7 @@ class Constants:
     class HumanSimulator(Enum):
         DUMMY = "dummy"
         HUNAV = "hunav"  # Added Hunavsim
+        SOCNAV = "socnav" # Added SocNav
         ISAAC = 'isaac'
 
     class TaskMode:

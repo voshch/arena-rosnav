@@ -14,7 +14,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "IsRobotFacingAgent",
@@ -27,7 +28,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "IsAgentVisible",
@@ -58,7 +60,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "IsRobotClose",
@@ -77,7 +80,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "IsAgentClose",
@@ -102,7 +106,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "IsAtPosition",
@@ -127,7 +132,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "IsAnyoneSpeaking",
@@ -164,7 +170,8 @@
             "type": "int",
             "description": "Identifier of the detected speaking agent."
           }
-        ]
+        ],
+        "n_agent": "single agent node"
       },
       {
         "name": "IsSpeaking",
@@ -201,7 +208,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "IsAnyoneLookingAtMe",
@@ -244,7 +252,8 @@
             "type": "int",
             "description": "Identifier of the agent that is looking at the target agent."
           }
-        ]
+        ],
+        "n_agent": "single agent node"
       },
       {
         "name": "IsLookingAtMe",
@@ -287,7 +296,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       }
     ],
     "Action node": [
@@ -308,7 +318,8 @@
             "type": "int",
             "description": "Identifier of the nearest agent found."
           }
-        ]
+        ],
+        "n_agent": "single agent node"
       },
       {
         "name": "SaySomething",
@@ -327,57 +338,8 @@
             "required": true
           }
         ],
-        "outputs": []
-      },
-      {
-        "name": "SetGroupId",
-        "purpose": "Sets the group identifier for the agent.",
-        "inputs": [
-          {
-            "name": "agent_id",
-            "type": "int",
-            "description": "Identifier of the agent.",
-            "required": true
-          },
-          {
-            "name": "group_id",
-            "type": "int",
-            "description": "New group identifier.",
-            "required": true
-          }
-        ],
-        "outputs": []
-      },
-      {
-        "name": "SetGoal",
-        "purpose": "Establishes a navigation target by setting a goal position.",
-        "inputs": [
-          {
-            "name": "agent_id",
-            "type": "int",
-            "description": "Identifier of the agent.",
-            "required": true
-          },
-          {
-            "name": "target_x",
-            "type": "double",
-            "description": "X-Coordinate of the target goal position.",
-            "required": true
-          },
-          {
-            "name": "target_y",
-            "type": "double",
-            "description": "Y-Coordinate of the target goal position.",
-            "required": true
-          },
-          {
-            "name": "goal_id",
-            "type": "int",
-            "description": "Goal ID of the target goal.",
-            "required": true
-          }
-        ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "StopMovement",
@@ -390,7 +352,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "ResumeMovement",
@@ -403,7 +366,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "StopAndWaitTimerAction",
@@ -422,7 +386,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "ConversationFormation",
@@ -459,38 +424,48 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "GoTo",
         "purpose": "Commands the agent to navigate directly to a specified point.",
         "inputs": [
           {
-            "name": "agent_id",
+            "name": "agent_name",
             "type": "int",
-            "description": "Identifier of the agent.",
+            "description": "Name of the agent.",
             "required": true
           },
           {
             "name": "time_step",
             "type": "double",
             "description": "Time step for movement updates [s].",
+            "default": 0.1,
+            "required": false
+          },
+          {
+            "name": "target_x",
+            "type": "double",
+            "description": "X-Coordinate of the target goal position.",
             "required": true
           },
           {
-            "name": "goal_id",
-            "type": "int",
-            "description": "Chosen goal ID to go to.",
+            "name": "target_y",
+            "type": "double",
+            "description": "Y-Coordinate of the target goal position.",
             "required": true
           },
           {
             "name": "tolerance",
             "type": "double",
             "description": "Distance to consider 'at goal' [m].",
-            "required": true
+            "default": 1.0,
+            "required": false
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "ApproachAgent",
@@ -521,7 +496,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "ApproachRobot",
@@ -558,7 +534,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "BlockRobot",
@@ -589,7 +566,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "BlockAgent",
@@ -626,7 +604,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "GroupWalk",
@@ -657,7 +636,8 @@
             "required": false
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "LookAtPoint",
@@ -682,7 +662,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "LookAtAgent",
@@ -707,7 +688,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "LookAtRobot",
@@ -726,7 +708,8 @@
             "required": true
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       },
       {
         "name": "FollowAgent",
@@ -757,7 +740,46 @@
             "required": false
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
+      },
+      {
+        "name": "Queue",
+        "purpose": "Commands agents to queue in line, the order of agents is determined by the order of their names in the list.",
+        "inputs": [
+          {
+            "name": "agent_names",
+            "type": "list[string]",
+            "description": "List of participating agent names. Must be passed as a string, e.g. [\"hunav_1\", \"hunav_2\"]",
+            "required": true
+          },
+          {
+            "name": "wait_duration",
+            "type": "list[double]",
+            "description": "Durations for which each agent should wait [s].",
+            "required": true
+          },
+          {
+            "name": "front_agent_pose",
+            "type": "list[double]",
+            "description": "The pose ([x, y, yaw]) of the agent in the front of the queue, the pose of agents behind will be calculated base on this agent's pose and queue direction.",
+            "required": true
+          },
+          {
+            "name": "direction",
+            "type": "double",
+            "description": "The direction of the queue line given in yaw angle, the pose of agents will be calculated base on this attribute and front agent's pose.",
+            "required": false
+          },
+          {
+            "name": "distances",
+            "type": "double",
+            "description": "The distance between each agents, e.g. If `agent_names`=[\"hunav_1\", \"hunav_2\"] and distances=[1.0], it means \"hunav_1\" stands 1.0 meters from \"hunav_2\".",
+            "required": false
+          }
+        ],
+        "outputs": [],
+        "n_agent": "multi agent node"
       }
     ],
     "Stateful Condition Nodes": [],
@@ -774,7 +796,8 @@
             "default": 1.0
           }
         ],
-        "outputs": []
+        "outputs": [],
+        "n_agent": "single agent node"
       }
     ]
   }

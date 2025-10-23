@@ -1,14 +1,12 @@
-import itertools
 import json
 import os
 import math
 import tempfile
 import time
 import xml.etree.ElementTree as ET
-from typing import Dict
+from typing import Dict, List
 
 import attrs
-import chromadb
 import yaml
 from ament_index_python.packages import get_package_share_directory
 from arena_rclpy_mixins.ROSParamServer import ROSParamT
@@ -38,6 +36,7 @@ from task_generator.tasks.obstacles.prompt_utils import (
     get_relevant_bt_nodes,
     process_json_doc,
 )
+from arena_hunav_sim_bridge.agent.llm_parser import Parser
 
 DEBUG: bool = bool(os.environ.get("ARENA_DEBUG", True))  # TODO change to false
 
@@ -116,19 +115,19 @@ class TM_Prompt(TM_Obstacles):
                 }
             }
 
-            for id, hunav in enumerate(llm_output.get("hunav_agents")):
-                hunav: Dict
-
+            parser = Parser(llm_output)
+            parser.parse()
+            for hunav_agent in parser.agents.values():
                 hunav_config = {
-                    "id": id,
-                    "name": hunav.get("name"),
-                    "pos": hunav.get("pos"),
-                    "model": hunav.get("model"),
-                    "waypoints": hunav.get("waypoints")
+                    "id": hunav_agent.id,
+                    "name": hunav_agent.name,
+                    "pos": hunav_agent.pos,
+                    "model": hunav_agent.model,
+                    "waypoints": hunav_agent.waypoints
                 }
 
-                bt_root: Dict = hunav.get("bt_root")
-                behavior_tree_xml = Root.model_validate_json(json.dumps(bt_root)).to_xml()
+
+                behavior_tree_xml = hunav_agent.to_xml()
 
                 tmp_xml_file = tempfile.NamedTemporaryFile(
                     mode='w+t',

@@ -57,7 +57,11 @@ repositories:
     type: git
     url: https://github.com/wg-perception/people.git
     version: ros2@0ae47f6
-  
+  deps/hunav/arena_hunav_sim_bridge:
+    type: git
+    url: https://github.com/ductaingn/arena_hunav_sim_bridge.git
+    version: humble@ef34904
+
   deps/robots/irobot_create:
     type: git
     url: https://github.com/iRobotEducation/create3_sim.git

@@ -51,7 +51,8 @@ def process_json_doc(doc_path:str) -> List[str]:
                 output_type = output["type"]
                 output_description = output["description"]
                 doc += f"\n\t- {output_name} ({output_type}): {output_description}"
-            doc += f"\nMetadata:\n\t-Category: {category}"
+            node_type = node["n_agent"]
+            doc += f"\nMetadata:\n\t-Category: {category}\n\t-Node type: {node_type}"
             documents.append(doc)
 
     return documents

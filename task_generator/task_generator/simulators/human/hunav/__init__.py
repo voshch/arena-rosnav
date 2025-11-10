@@ -89,7 +89,7 @@ class HunavDynamicObstacle:
             behavior_msg.once = self.once
             behavior_msg.vel = self.vel
             behavior_msg.dist = self.dist
-            behavior_msg.goal_force_factor = 20.0  # hunav_obstacle.behavior.goal_force_factor
+            behavior_msg.goal_force_factor = 10.0  # hunav_obstacle.behavior.goal_force_factor
             behavior_msg.obstacle_force_factor = self.obstacle_force_factor
             behavior_msg.social_force_factor = self.social_force_factor
             behavior_msg.other_force_factor = self.other_force_factor
@@ -184,7 +184,7 @@ class HunavDynamicObstacle:
         agent_msg.group_id = self.group_id
         agent_msg.desired_velocity = self.desired_velocity
         # self._logger.info(f"=== spawn_dynamic_obstacles_desired_velocity: {agent_msg.desired_velocity}===")
-        agent_msg.radius = self.radius
+        agent_msg.radius = 0.5 # self.radius
 
         # Set position
         agent_msg.position = geometry_msgs.msg.Pose()

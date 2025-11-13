@@ -55,6 +55,11 @@ def generate_launch_description():
         default_value='true',
         description='If true, start the simulator as part of this launch'
     )
+    start_tasks = LaunchArgument(
+        name='start_tasks',
+        default_value='true',
+        description='If true, start the task_generator nodes as part of this launch'
+    )
     sim_lock = LaunchArgument(
         name='sim_lock',
         default_value='/tmp/arena_sim.lock',
@@ -238,6 +243,19 @@ def generate_launch_description():
         },
     )
 
+    def _maybe_launch_task_generators(context):
+        start_tasks_val = launch.utilities.perform_substitutions(
+            context, [start_tasks.substitution]
+        )
+        try:
+            if str(start_tasks_val).lower() not in ('1', 'true', 'yes'):
+                return []
+        except Exception:
+            return []
+        return [launch_task_generators]
+
+    include_task_generators_action = launch.actions.OpaqueFunction(function=_maybe_launch_task_generators)
+
     launch_simulator = launch.actions.IncludeLaunchDescription(
         launch.launch_description_sources.PythonLaunchDescriptionSource(
             os.path.join(bringup_dir, 'launch/simulator/sim/sim.launch.py')
@@ -335,7 +353,13 @@ def generate_launch_description():
             ]
         ),
         SetGlobalLogLevelAction(log_level.substitution),
-        launch_task_generators,
+        LogInfo(msg=[
+            TextSubstitution(text="Flags: start_sim="),
+            start_sim.substitution,
+            TextSubstitution(text=", start_tasks="),
+            start_tasks.substitution,
+        ]),
+        include_task_generators_action,
     include_simulator_action,
         world_generator_node,
     ])

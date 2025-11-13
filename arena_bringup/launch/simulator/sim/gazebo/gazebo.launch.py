@@ -1,7 +1,11 @@
 import itertools
 import os
+import time
 
 import yaml
+import launch
+from launch.actions import OpaqueFunction
+import launch.event_handlers
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -20,6 +24,12 @@ def generate_launch_description():
         "use_sim_time",
         default_value='True',
         description="Use simulation (Gazebo) clock if true",
+    )
+
+    sim_lock = LaunchArgument(
+        name='sim_lock',
+        default_value='/tmp/arena_sim.lock',
+        description='Path to simulator lock file'
     )
 
     world = LaunchArgument(
@@ -137,6 +147,27 @@ def generate_launch_description():
         }.items(),
     )
 
+    def _create_lock(context):
+        lock_path = launch.utilities.perform_substitutions(context, [sim_lock.substitution])
+        try:
+            with open(lock_path, 'w') as f:
+                f.write(f"{os.getpid()} {int(time.time())}\n")
+        except Exception:
+            pass
+
+    def _cleanup_lock(context):
+        lock_path = launch.utilities.perform_substitutions(context, [sim_lock.substitution])
+        try:
+            if os.path.exists(lock_path):
+                os.remove(lock_path)
+        except Exception:
+            pass
+
+    create_lock_action = OpaqueFunction(function=_create_lock)
+    cleanup_handler = launch.event_handlers.RegisterEventHandler(
+        launch.event_handlers.OnShutdown(on_shutdown=[OpaqueFunction(function=_cleanup_lock)])
+    )
+
     clock_bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
@@ -169,7 +200,10 @@ def generate_launch_description():
             #     PythonLaunchDescriptionSource(random_spawn_launch_file),
             #     condition=IfCondition(random_spawn_test),
             # ),
+            create_lock_action,
+            gazebo,
             clock_bridge,
+            cleanup_handler,
         ]
     )
 

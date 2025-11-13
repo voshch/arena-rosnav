@@ -166,6 +166,9 @@ def main(args=None):
             return False
         return True
 
+    # track whether we've seen a valid simulator lock; used by the watcher
+    seen_lock = {"val": False}
+
     if os.path.exists(sim_lock_path):
         try:
             # read pid from lock file and validate
@@ -210,11 +213,82 @@ def main(args=None):
                         pass
 
                 threading.Thread(target=_delayed_reset, daemon=True).start()
+                # mark that we've seen a valid lock at startup
+                try:
+                    seen_lock["val"] = True
+                except Exception:
+                    pass
         except Exception:
             # ignore failures around checking the lock
             pass
 
     executor.add_node(node)
+
+    # Background watcher: poll for the simulator lock file appearing/disappearing.
+    def _sim_watcher():
+        poll_interval = 1.0
+        while rclpy.ok() and not shutdown_requested["flag"]:
+            try:
+                if os.path.exists(sim_lock_path):
+                    # validate pid inside lock
+                    try:
+                        with open(sim_lock_path, 'r') as f:
+                            data = f.read().strip().split()
+                            if data:
+                                pid = int(data[0])
+                                if _is_pid_alive(pid):
+                                    if not seen_lock["val"]:
+                                        # newly appeared valid lock -> perform reset
+                                        try:
+                                            node.get_logger().info(
+                                                f"Simulator lock appeared ({sim_lock_path}), performing sync/reset..."
+                                            )
+                                        except Exception:
+                                            pass
+
+                                        def _delayed_reset_on_appear():
+                                            try:
+                                                time.sleep(1.0)
+                                                try:
+                                                    node.reset_task(first_map=True)
+                                                except Exception as e:
+                                                    try:
+                                                        node.get_logger().warn(f"Startup reset failed: {e}")
+                                                    except Exception:
+                                                        pass
+                                            except Exception:
+                                                pass
+
+                                        threading.Thread(target=_delayed_reset_on_appear, daemon=True).start()
+                                        seen_lock["val"] = True
+                                else:
+                                    # stale lock, remove it and mark unseen
+                                    try:
+                                        os.remove(sim_lock_path)
+                                    except Exception:
+                                        pass
+                                    seen_lock["val"] = False
+                    except Exception:
+                        # malformed/unreadable -> try remove
+                        try:
+                            os.remove(sim_lock_path)
+                        except Exception:
+                            pass
+                        seen_lock["val"] = False
+                else:
+                    # no lock present
+                    if seen_lock["val"]:
+                        # mark unseen so future appearances trigger reset
+                        seen_lock["val"] = False
+                time.sleep(poll_interval)
+            except Exception:
+                # swallow errors in watcher to avoid crashing main thread
+                try:
+                    time.sleep(poll_interval)
+                except Exception:
+                    pass
+
+    threading.Thread(target=_sim_watcher, daemon=True).start()
 
     try:
         node.get_logger().info('Beginning client, shut down with CTRL-C')

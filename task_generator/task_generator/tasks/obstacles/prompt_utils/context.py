@@ -210,7 +210,6 @@ behavior_tree_format = """
         "single_agent_nodes": [
             {
                 "name": <node name>,
-                "agent_name": <agent name>,
                 "attributes": {
                     <node attribute>: <attribute value>,
                 },
@@ -221,11 +220,6 @@ behavior_tree_format = """
         "multi_agent_nodes": [
             {
                 "name": <node name>,
-                "agents_names": [
-                    <agent 1 name>,
-                    ... ,
-                    <agent n name>
-                ],
                 "attributes": {
                     <node attribute>: <attribute value>,
                 },
@@ -249,8 +243,8 @@ behavior_tree_format = """
                 "name": "hunav_1",
                 "pos": [
                     24.0,
-                    2.0,
-                    -160.0
+                    20.0,
+                    90.0
                 ],
                 "type": "adult",
                 "model": "gazebo_actor",
@@ -258,33 +252,33 @@ behavior_tree_format = """
                     [
                         27.1,
                         7.0,
-                        150.0
+                        10.0
                     ],
                     [
-                        17.7,
+                        21.7,
                         7.0,
-                        90.0
+                        130.0
                     ]
                 ]
             },
             {
                 "name": "hunav_2",
                 "pos": [
-                    24.0,
-                    2.0,
+                    12.0,
+                    20.0,
                     -160.0
                 ],
                 "type": "adult",
                 "model": "gazebo_actor",
                 "waypoints": [
                     [
-                        27.1,
-                        7.0,
+                        13.1,
+                        8.0,
                         150.0
                     ],
                     [
                         17.7,
-                        7.0,
+                        1.0,
                         90.0
                     ]
                 ]
@@ -293,8 +287,8 @@ behavior_tree_format = """
         "single_agent_nodes": [
             {
                 "name": "GoTo",
-                "agent_name": "hunav_1",
                 "attributes": {
+                    "agent_name": "hunav_1",
                     "target_x": 0.0,
                     "target_y": 1.1
                 },
@@ -304,11 +298,11 @@ behavior_tree_format = """
         "multi_agent_nodes": [
             {
                 "name": "Queue",
-                "agents_names": [
-                    "hunav_1",
-                    "hunav_2"
-                ],
                 "attributes": {
+                    "agents_names": [
+                        "hunav_1",
+                        "hunav_2"
+                    ],
                     "wait_duration": [
                         20,
                         30
@@ -326,6 +320,23 @@ behavior_tree_format = """
                 "orders": {
                     "hunav_1": 1,
                     "hunav_2": 0
+                }
+            },
+            {
+                "name": "ConversationFormation",
+                "attributes": {
+                    "main_agent_name": "hunav_2",
+                    "non_main_agent_names": [
+                        "hunav_1"
+                    ],
+                    "conversation_duration": 20.0,
+                    "target_x": 10.0,
+                    "target_y": 20.0,
+                    "time_step": 1.0
+                },
+                "orders": {
+                    "hunav_1": 2,
+                    "hunav_2": 1
                 }
             }
         ]
@@ -360,7 +371,7 @@ behavior_tree_descriptions = """
         - `multi_agent_nodes`: the behavior tree nodes that more than one agent involved in.
 
     Inside `single_agent_nodes`: Contains a list of behavior tree nodes, each has:
-    - `name`: name of the node
+    - `name`: name of the node, only use provided node name, do not modify!
     - `agent_name`: name of the agent this node applies to
     - `attributes`: a dictionary of key-value pairs (parameters passed to the node)
     - `order`: an integer represent the order of execution of this node in the agent behavior tree. The agent will handle nodes in a ascending order determined by this field. For each agent, every nodes must be unique no matter the type (single-agent or multi-agent nodes) is.

@@ -18,33 +18,19 @@
         "n_agent": "single agent node"
       },
       {
-        "name": "IsRobotFacingAgent",
-        "purpose": "Checks if the robot is oriented towards the agent.",
-        "inputs": [
-          {
-            "name": "agent_id",
-            "type": "int",
-            "description": "Identifier of the agent.",
-            "required": true
-          }
-        ],
-        "outputs": [],
-        "n_agent": "single agent node"
-      },
-      {
         "name": "IsAgentVisible",
         "purpose": "Determines if a target agent is visible to an observer.",
         "inputs": [
           {
-            "name": "observer_id",
+            "name": "observer_name",
             "type": "int",
-            "description": "Identifier of the observing agent.",
+            "description": "Name of the observing agent.",
             "required": true
           },
           {
-            "name": "agent_id",
+            "name": "agent_name",
             "type": "int",
-            "description": "Identifier of the target agent.",
+            "description": "Name of the target agent.",
             "required": true
           },
           {
@@ -64,39 +50,19 @@
         "n_agent": "single agent node"
       },
       {
-        "name": "IsRobotClose",
-        "purpose": "Evaluates whether the robot is within a threshold distance of the agent.",
-        "inputs": [
-          {
-            "name": "agent_id",
-            "type": "int",
-            "description": "Identifier of the agent.",
-            "required": true
-          },
-          {
-            "name": "threshold",
-            "type": "double",
-            "description": "Distance threshold for close proximity [m].",
-            "required": true
-          }
-        ],
-        "outputs": [],
-        "n_agent": "single agent node"
-      },
-      {
         "name": "IsAgentClose",
         "purpose": "Determines whether one agent is within a close distance of another agent.",
         "inputs": [
           {
-            "name": "observer_id",
+            "name": "observer_name",
             "type": "int",
-            "description": "Identifier of the observing agent.",
+            "description": "Name of the observing agent.",
             "required": true
           },
           {
-            "name": "target_agent_id",
+            "name": "target_agent_name",
             "type": "int",
-            "description": "Identifier of the target agent.",
+            "description": "Name of the target agent.",
             "required": true
           },
           {
@@ -114,185 +80,21 @@
         "purpose": "Checks if the agent has reached a specified goal position within a tolerance.",
         "inputs": [
           {
-            "name": "agent_id",
+            "name": "agent_name",
             "type": "int",
-            "description": "Identifier of the agent.",
+            "description": "Name of the agent.",
             "required": true
           },
           {
-            "name": "goal_id",
-            "type": "int",
-            "description": "Target goal ID.",
-            "required": true
-          },
-          {
-            "name": "tolerance",
+            "name": "target_x",
             "type": "double",
-            "description": "Acceptable distance tolerance to consider 'at goal' [m].",
-            "required": true
-          }
-        ],
-        "outputs": [],
-        "n_agent": "single agent node"
-      },
-      {
-        "name": "IsAnyoneSpeaking",
-        "purpose": "Evaluates whether any agent within a given distance is speaking over a specified duration.",
-        "inputs": [
-          {
-            "name": "agent_id",
-            "type": "int",
-            "description": "Identifier of the agent checking for speakers.",
+            "description": "X-Coordinate of the target goal position.",
             "required": true
           },
           {
-            "name": "time_step",
+            "name": "target_y",
             "type": "double",
-            "description": "Time step for movement updates [s].",
-            "required": true
-          },
-          {
-            "name": "distance_threshold",
-            "type": "double",
-            "description": "Maximum distance within which speaking is detected [m].",
-            "required": true
-          },
-          {
-            "name": "duration",
-            "type": "double",
-            "description": "Duration over which the speaking condition is evaluated [s].",
-            "required": true
-          }
-        ],
-        "outputs": [
-          {
-            "name": "speaker_id",
-            "type": "int",
-            "description": "Identifier of the detected speaking agent."
-          }
-        ],
-        "n_agent": "single agent node"
-      },
-      {
-        "name": "IsSpeaking",
-        "purpose": "Checks whether a specified agent is speaking within a distance threshold over a duration.",
-        "inputs": [
-          {
-            "name": "agent_id",
-            "type": "int",
-            "description": "Identifier of the agent checking for the speaker.",
-            "required": true
-          },
-          {
-            "name": "time_step",
-            "type": "double",
-            "description": "Time step for movement updates [s].",
-            "required": true
-          },
-          {
-            "name": "target_id",
-            "type": "int",
-            "description": "Identifier of the agent whose speaking status is evaluated.",
-            "required": true
-          },
-          {
-            "name": "distance_threshold",
-            "type": "double",
-            "description": "Distance range for detecting the speaking condition [m].",
-            "required": true
-          },
-          {
-            "name": "duration",
-            "type": "double",
-            "description": "Duration over which the condition is considered [s].",
-            "required": true
-          }
-        ],
-        "outputs": [],
-        "n_agent": "single agent node"
-      },
-      {
-        "name": "IsAnyoneLookingAtMe",
-        "purpose": "Determines if any agent is looking at the agent over a specified duration and angle/distance thresholds.",
-        "inputs": [
-          {
-            "name": "agent_id",
-            "type": "int",
-            "description": "Identifier of the agent being observed.",
-            "required": true
-          },
-          {
-            "name": "time_step",
-            "type": "double",
-            "description": "Time step for movement updates [s].",
-            "required": true
-          },
-          {
-            "name": "distance_threshold",
-            "type": "double",
-            "description": "Maximum distance for detecting potential observers [m].",
-            "required": true
-          },
-          {
-            "name": "angle_threshold",
-            "type": "double",
-            "description": "Angular threshold specifying how precisely the observer must be aligned [rad].",
-            "required": true
-          },
-          {
-            "name": "duration",
-            "type": "double",
-            "description": "Duration that the condition must persist [s].",
-            "required": true
-          }
-        ],
-        "outputs": [
-          {
-            "name": "observer_id",
-            "type": "int",
-            "description": "Identifier of the agent that is looking at the target agent."
-          }
-        ],
-        "n_agent": "single agent node"
-      },
-      {
-        "name": "IsLookingAtMe",
-        "purpose": "Checks whether a specified target agent is looking at the agent over a defined time, distance, and angle.",
-        "inputs": [
-          {
-            "name": "agent_id",
-            "type": "int",
-            "description": "Identifier of the agent being looked at.",
-            "required": true
-          },
-          {
-            "name": "time_step",
-            "type": "double",
-            "description": "Time step for movement updates [s].",
-            "required": true
-          },
-          {
-            "name": "target_id",
-            "type": "int",
-            "description": "Identifier of the target agent that is potentially looking.",
-            "required": true
-          },
-          {
-            "name": "distance_threshold",
-            "type": "double",
-            "description": "Maximum range to detect the look direction [m].",
-            "required": true
-          },
-          {
-            "name": "angle_threshold",
-            "type": "double",
-            "description": "Angular threshold for the looking condition [rad].",
-            "required": true
-          },
-          {
-            "name": "duration",
-            "type": "double",
-            "description": "Duration over which the condition is checked [s].",
+            "description": "Y-Coordinate of the target goal position.",
             "required": true
           }
         ],
@@ -329,12 +131,6 @@
             "name": "agent_id",
             "type": "int",
             "description": "Identifier of the speaking agent.",
-            "required": true
-          },
-          {
-            "name": "message",
-            "type": "string",
-            "description": "The message to be published.",
             "required": true
           }
         ],
@@ -394,7 +190,7 @@
         "purpose": "Manages the formation of a conversation among multiple agents.",
         "inputs": [
           {
-            "name": "main_agent_id",
+            "name": "main_agent_name",
             "type": "int",
             "description": "Identifier of the primary agent leading the conversation.",
             "required": true
@@ -406,9 +202,15 @@
             "required": true
           },
           {
-            "name": "goal_id",
-            "type": "int",
-            "description": "Goal ID where the conversation’s central point will take place.",
+            "name": "target_x",
+            "type": "double",
+            "description": "X-Coordinate of where conversation's central point will take place.",
+            "required": true
+          },
+          {
+            "name": "target_y",
+            "type": "double",
+            "description": "Y-Coordinate of where conversation's central point will take place.",
             "required": true
           },
           {
@@ -418,9 +220,9 @@
             "required": true
           },
           {
-            "name": "non_main_agent_ids",
+            "name": "non_main_agent_names",
             "type": "string",
-            "description": "Comma‑separated list of participating agent IDs. Must be passed as a string, e.g. \"1,2,3\" — not as {id} because {id} is an int.",
+            "description": "List of participating agent names. Must be passed as a list of string, e.g. [\"hunav_1\", \"hunav_2\"]",
             "required": true
           }
         ],
@@ -500,119 +302,11 @@
         "n_agent": "single agent node"
       },
       {
-        "name": "ApproachRobot",
-        "purpose": "Commands the agent to approach the robot for a defined duration.",
-        "inputs": [
-          {
-            "name": "agent_id",
-            "type": "int",
-            "description": "Identifier of the agent.",
-            "required": true
-          },
-          {
-            "name": "time_step",
-            "type": "double",
-            "description": "Time step for movement updates [s].",
-            "required": true
-          },
-          {
-            "name": "closest_dist",
-            "type": "double",
-            "description": "Distance considered close enough to the robot [m].",
-            "required": true
-          },
-          {
-            "name": "max_vel",
-            "type": "double",
-            "description": "Maximum velocity during the approach [m/s].",
-            "required": true
-          },
-          {
-            "name": "duration",
-            "type": "double",
-            "description": "Duration of the approach behaviour [s].",
-            "required": true
-          }
-        ],
-        "outputs": [],
-        "n_agent": "single agent node"
-      },
-      {
-        "name": "BlockRobot",
-        "purpose": "Instructs the agent to block the robot’s path for a specified duration.",
-        "inputs": [
-          {
-            "name": "agent_id",
-            "type": "int",
-            "description": "Identifier of the agent.",
-            "required": true
-          },
-          {
-            "name": "time_step",
-            "type": "double",
-            "description": "Time step for movement updates [s].",
-            "required": true
-          },
-          {
-            "name": "front_dist",
-            "type": "double",
-            "description": "Distance in front of the agent used for blocking [m].",
-            "required": true
-          },
-          {
-            "name": "duration",
-            "type": "double",
-            "description": "Duration for which the agent will block [s].",
-            "required": true
-          }
-        ],
-        "outputs": [],
-        "n_agent": "single agent node"
-      },
-      {
-        "name": "BlockAgent",
-        "purpose": "Commands the agent to block another agent’s path for a defined duration.",
-        "inputs": [
-          {
-            "name": "agent_id",
-            "type": "int",
-            "description": "Identifier of the blocking agent.",
-            "required": true
-          },
-          {
-            "name": "target_agent_id",
-            "type": "int",
-            "description": "Identifier of the agent to be blocked.",
-            "required": true
-          },
-          {
-            "name": "time_step",
-            "type": "double",
-            "description": "Time step for movement updates [s].",
-            "required": true
-          },
-          {
-            "name": "front_dist",
-            "type": "double",
-            "description": "Blocking distance threshold [m].",
-            "required": true
-          },
-          {
-            "name": "duration",
-            "type": "double",
-            "description": "Duration of the blocking action [s].",
-            "required": true
-          }
-        ],
-        "outputs": [],
-        "n_agent": "single agent node"
-      },
-      {
         "name": "GroupWalk",
         "purpose": "Directs a group to walk together with a designated main agent.",
         "inputs": [
           {
-            "name": "main_agent_id",
+            "name": "main_agent_name",
             "type": "int",
             "description": "Identifier of the main agent guiding the group.",
             "required": true
@@ -624,9 +318,9 @@
             "required": true
           },
           {
-            "name": "non_main_agent_ids",
+            "name": "non_main_agent_names",
             "type": "string",
-            "description": "Comma‑separated list of the non‑main agents’ identifiers. Must be passed as a string, e.g. \"1,2,3\" — not as {id} because {id} is an int.",
+            "description": "List of the non-main agents' names. Must be passed as a list of string, e.g. [\"hunav_1\", \"hunav_2\"]",
             "required": true
           },
           {
@@ -634,78 +328,6 @@
             "type": "double",
             "description": "Duration for which the behaviour runs [s]. If omitted, the behaviour runs indefinitely.",
             "required": false
-          }
-        ],
-        "outputs": [],
-        "n_agent": "single agent node"
-      },
-      {
-        "name": "LookAtPoint",
-        "purpose": "Makes the agent orient towards a specific point in space.",
-        "inputs": [
-          {
-            "name": "agent_id",
-            "type": "int",
-            "description": "Identifier of the agent.",
-            "required": true
-          },
-          {
-            "name": "goal_id",
-            "type": "int",
-            "description": "Goal ID of the point to look at.",
-            "required": true
-          },
-          {
-            "name": "yaw_tolerance",
-            "type": "double",
-            "description": "Angle tolerance to consider 'aligned' [rad].",
-            "required": true
-          }
-        ],
-        "outputs": [],
-        "n_agent": "single agent node"
-      },
-      {
-        "name": "LookAtAgent",
-        "purpose": "Directs an observer agent to focus on another agent.",
-        "inputs": [
-          {
-            "name": "observer_id",
-            "type": "int",
-            "description": "Identifier of the observing agent.",
-            "required": true
-          },
-          {
-            "name": "target_id",
-            "type": "int",
-            "description": "Identifier of the target agent.",
-            "required": true
-          },
-          {
-            "name": "yaw_tolerance",
-            "type": "double",
-            "description": "Angle tolerance to consider 'aligned' [rad].",
-            "required": true
-          }
-        ],
-        "outputs": [],
-        "n_agent": "single agent node"
-      },
-      {
-        "name": "LookAtRobot",
-        "purpose": "Commands the agent to direct its attention toward the robot.",
-        "inputs": [
-          {
-            "name": "agent_id",
-            "type": "int",
-            "description": "Identifier of the agent.",
-            "required": true
-          },
-          {
-            "name": "yaw_tolerance",
-            "type": "double",
-            "description": "Angle tolerance to consider 'aligned' [rad].",
-            "required": true
           }
         ],
         "outputs": [],
@@ -748,9 +370,9 @@
         "purpose": "Commands agents to queue in line, the order of agents is determined by the order of their names in the list.",
         "inputs": [
           {
-            "name": "agent_names",
+            "name": "agents_names",
             "type": "list[string]",
-            "description": "List of participating agent names. Must be passed as a string, e.g. [\"hunav_1\", \"hunav_2\"]",
+            "description": "List of participating agent names. Must be passed as a list of string, e.g. [\"hunav_1\", \"hunav_2\"]",
             "required": true
           },
           {
@@ -774,7 +396,7 @@
           {
             "name": "distances",
             "type": "double",
-            "description": "The distance between each agents, e.g. If `agent_names`=[\"hunav_1\", \"hunav_2\"] and distances=[1.0], it means \"hunav_1\" stands 1.0 meters from \"hunav_2\".",
+            "description": "The distances between each agents, e.g. If `agents_names`=[\"hunav_1\", \"hunav_2\", \"hunav_3\"] and distances=[1.0, 1.5], it means \"hunav_1\" stands 1.0 meters from \"hunav_2\" and \"hunav_2\" stands 1.5 meters from \"hunav_3\".",
             "required": false
           }
         ],

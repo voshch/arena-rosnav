@@ -454,22 +454,25 @@ class HunavHumanSimulator(DummyHumanSimulator):
             for obs_agent in msg.agents:
                 self._latest_obstacles[obs_agent.name] = obs_agent.closest_obs
 
-            self._logger.debug(f"Updated obstacle data for {len(self._latest_obstacles)} agents")
+            self._logger.info(f"Updated obstacle data for {len(self._latest_obstacles)} agents")
 
         except Exception as e:
             self._logger.error(f"Error in obstacle callback: {e}")
 
     def _update_agent_obstacles(self, current_agents):
         """Update agent closest_obs with latest obstacle data before HuNav call"""
-        if not self._latest_obstacles:
-            return
+        # if not self._latest_obstacles:
+        #     return current_agents
 
         for agent in current_agents.agents:
-            if agent.name in self._latest_obstacles:
-                agent.closest_obs = self._latest_obstacles[agent.name]
-                agent.closest_obs.extend(self._wall_points)
-                self._logger.debug(f"Updated agent {agent.name} with {len(agent.closest_obs)} obstacles")
-                self._logger.debug(f"Wall Points: {self._wall_points}")
+            # if agent.name in self._latest_obstacles:
+            # agent.closest_obs = self._latest_obstacles[agent.name]
+            agent.closest_obs.extend(self._wall_points)
+            self._logger.debug(f"Updated agent {agent.name} with {len(agent.closest_obs)} obstacles")
+            self._logger.debug(f"Wall Points: {self._wall_points}")
+
+        # self._logger.info(f"current_agents after obstacle update: {current_agents}")
+        return current_agents
 
     def _get_agents_callback(self, request, response):
         """Handle get_agents service request - return UNMODIFIED agents"""
@@ -613,12 +616,13 @@ class HunavHumanSimulator(DummyHumanSimulator):
 
         return results
 
-    def _wall_to_points(self, start: Position, end: Position, spacing: float = 0.01) -> list[Point]:
+    def _wall_to_points(self, start: Position, end: Position, spacing: float = 0.2) -> list[Point]:
         points: list[Point] = []
         v = (end - start).normalized()
         for i in np.arange(0, (end - start).norm(), spacing):
-            points.append(start + v * i)
-        points.append(end)
+            pt_pos = start + v * i
+            points.append(pt_pos.to_msg())  # convert Position -> geometry_msgs.msg.Point
+        points.append(end.to_msg())
         return points
 
     def _spawn_walls_impl(self, walls) -> bool:
@@ -636,8 +640,6 @@ class HunavHumanSimulator(DummyHumanSimulator):
             self._wall_segments.append(segment)
             self._wall_points.extend(self._wall_to_points(wall.start, wall.end))
 
-        self._logger.debug(f"Cached {len(self._wall_segments)} wall segments")
-        self._logger.debug(f"Wallsegments{self._wall_segments} ")
         return True
 
     def _remove_obstacles_impl(self):
@@ -859,10 +861,14 @@ class HunavHumanSimulator(DummyHumanSimulator):
             current_agents.header.stamp = self.node.get_clock().now().to_msg()
 
             # Update obstacles BEFORE sending to HuNav
-            self._update_agent_obstacles(current_agents)
+            current_agents = self._update_agent_obstacles(current_agents)
 
             # Smooth yaw values before sending to HuNav
             current_agents = self._smooth_agents_before_hunav(current_agents)
+
+            # self._logger.info("Check here 1")
+
+            # self._logger.info(f"Updated agents: {current_agents}")
 
             # Create request
             request = ComputeAgents.Request()
@@ -878,13 +884,12 @@ class HunavHumanSimulator(DummyHumanSimulator):
 
                 self._last_updated_agents = response.updated_agents
 
-                self._logger.debug(f"Updated agents: {self._last_updated_agents}")
-
                 # Update arena pedestrians
                 for arena_ped in self._arena_pedestrians_container.pedestrians:
                     for updated_agent in response.updated_agents.agents:
                         if updated_agent.id == arena_ped.id:
 
+                            # self._logger.info(f"Updated agent: {updated_agent}")
                             calculated_vel_x, calculated_vel_y = self._calculate_velocity_from_position_change(updated_agent, arena_ped)
 
                             arena_ped.pose = self._round_coordinates(updated_agent.position, 2)
@@ -892,6 +897,8 @@ class HunavHumanSimulator(DummyHumanSimulator):
                             arena_ped.twist.linear.x = updated_agent.velocity.linear.x
                             arena_ped.twist.linear.y = updated_agent.velocity.linear.y
                             arena_ped.twist.linear.z = 0.0
+
+                            # self._logger.info(f"vel: {arena_ped.twist.linear.x}, {arena_ped.twist.linear.y}")
 
                             arena_ped.twist.angular.x = 0.0
                             arena_ped.twist.angular.y = 0.0

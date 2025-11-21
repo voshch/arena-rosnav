@@ -60,7 +60,11 @@ repositories:
   deps/hunav/arena_hunav_sim_bridge:
     type: git
     url: https://github.com/ductaingn/arena_hunav_sim_bridge.git
-    version: humble@ef34904
+    version: humble@ca64872
+  deps/hunav/arena_text_crowd:
+    type: git
+    url: https://github.com/ductaingn/arena_text_crowd.git
+    version: humble@939c70f
 
   deps/robots/irobot_create:
     type: git
